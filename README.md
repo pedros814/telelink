@@ -645,6 +645,12 @@ config edit google_credentials C:\path\to\oauth-client.json
 
 ---
 
+## Support
+
+If TeleLink is useful to you, consider [buying me a coffee](https://buymeacoffee.com/galore).
+
+---
+
 ## License
 
 MIT
