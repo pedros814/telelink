@@ -1,0 +1,47 @@
+TeleLink — sending messages (important limits)
+=============================================
+
+Phone Link does NOT offer a public API to send SMS/iMessage silently from
+the terminal. Microsoft documents that mailto:/sms:/ms-chat: URIs open
+compose but do NOT send until you tap Send.
+
+What TeleLink can do
+--------------------
+
+1. messaging.method: sms_uri (default)
+   Opens Phone Link compose with number + message filled.
+   You tap Send.
+
+2. messaging.method: auto (recommended on Windows)
+   Opens compose, then uses UI automation (pywinauto) to click Send or
+   press Enter. Phone Link should stay running in the background.
+   Best effort — verify the message actually sent.
+   If pywinauto misses controls, TeleLink can fall back to Appium +
+   WinAppDriver when optional automation.appium settings are configured.
+   Keep WinAppDriver reachable at automation.appium.server_url.
+   Run `doctor` / `config` to check fallback health.
+
+3. messaging.method: adb (Android only)
+   Sends via USB debugging on a connected Android phone.
+   Does not use Phone Link. Requires: adb in PATH, USB debugging on.
+
+iPhone + Phone Link
+-------------------
+Apple limits third-party SMS access. Auto-send may still fail or require
+confirmation on the iPhone. There is no supported way to bypass that from
+a Windows terminal without your phone cooperating.
+
+Setup for auto mode
+-------------------
+  pip install pywinauto
+  Keep Phone Link running (paired, Messages enabled)
+  config.yaml:
+    messaging:
+      method: auto
+
+Commands
+--------
+  send Shawk On my way
+  send +15551234567 Hello
+
+See: https://learn.microsoft.com/en-us/answers/questions/3966295/sending-sms-via-phonelink

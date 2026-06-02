@@ -1,0 +1,66 @@
+AUTOMATIC images (no manual Share) - iPhone Shortcut Automation
+=============================================================
+
+This is the closest thing to "hack" without jailbreak or a Mac.
+When your client texts, iPhone runs a Shortcut and POSTs to your PC.
+
+ONE-TIME SETUP
+--------------
+1. PC: telelink > listen  (note intake URL, e.g. http://192.168.1.50:8787/intake)
+2. iPhone on same Wi-Fi
+3. Shortcuts app > Automation tab > + > Create Personal Automation
+
+AUTOMATION TRIGGER
+------------------
+Choose: "Message"
+  - "Message contains" optional
+  - OR "Sender" = your client contact (Shawk)
+  - Include: Any / with attachments
+
+ACTIONS (in order)
+------------------
+1. "Get Text" from Shortcut Input
+2. "Get Images" from Shortcut Input  (critical for photos)
+3. "Get Contents of URL"
+     URL: http://YOUR-PC-IP:8787/intake
+     Method: POST
+     Request Body: Form
+       sender = Shawk
+       message = [Text from step 1]
+       image = [Images from step 2]
+4. Turn OFF "Ask Before Running" for this automation
+
+Now every message (with image) auto-sends to TeleLink.
+
+LIMITS
+------
+- iOS may ask to confirm the first time
+- Apple sometimes delays automations by ~1 minute
+- Group chats are flaky; use 1:1 client thread
+- Still not reading encrypted iMessage off the wire - phone forwards to you
+
+OPTION B: USB / Wi-Fi photo pull (Camera Roll only)
+---------------------------------------------------
+If client saves images to Photos, enable in config.yaml:
+
+  iphone_pull:
+    enabled: true
+
+Requires:
+  pip install pymobiledevice3
+  iPhone USB trust once
+  Apple Devices > enable "Sync over Wi-Fi"
+
+Pulls new DCIM photos - NOT inline iMessage attachments unless saved to Photos.
+
+OPTION C: Jailbreak (real filesystem access)
+--------------------------------------------
+SSH into iPhone, sync folder:
+  /var/mobile/Library/SMS/Attachments/
+Not documented here - advanced users only.
+
+WHAT IS NOT POSSIBLE
+--------------------
+- Sniffing iMessage over Wi-Fi (end-to-end encrypted)
+- Phone Link exposing full-res attachments (often no local cache)
+- Windows reading iMessage DB without backup or jailbreak

@@ -1,0 +1,144 @@
+telelink > commands
+
+
+
+  watcher         start watcher in new window
+
+  watcher stop    force stop watcher window
+
+  intake          LAN share — QR or text the link
+
+  intake global   public URL (internet, not just LAN)
+
+  intake stop     stop intake server
+
+  outtake <url|file…>  QR — link or GitHub share (multiple files → zip)
+
+  outtake <file> --airdrop  send file via AirDrop (OpenDrop)
+
+  airdrop         list nearby AirDrop receivers
+
+  airdrop "iPhone" <file>   send file via AirDrop
+
+  caught          browse caught notifications (table, json, gron)
+
+  contacts        contacts table (name → phone, match rules)
+
+  send <who> msg  text contact or +number (opens Phone Link)
+
+  calendar        scheduled SMS events table
+
+  calendar add <name> <who> <when> <msg>   schedule a message
+
+  calendar status calendar + Google sync health
+
+  calls           recent Phone Link calls (default 1d retention)
+
+  missed          missed calls table
+
+  help calls      call log, watcher requirement, reminders
+
+  help sync       Phone Link re-sync, stale cache, auto-sync config
+
+  sync            re-sync Phone Link + contacts (auto every 30m)
+
+  config          show config, paths, and contacts
+
+  config reset    restore config.yaml from config.example.yaml
+
+  agent           AI cheat sheet (same as AGENTS.md)
+
+  agent context   JSON for Cursor/Claude — tone, caught, commands
+
+  how             full how-to guide (read this first)
+
+  how <topic>     topic guide (e.g. how watcher, how intake)
+
+  help analyze    AI snapshot folder (.analyze)
+
+  help wipe           clear caught, contacts, db, attachments, …
+
+  help config reset   restore config.yaml from example
+
+  help airdrop    AirDrop / OpenDrop setup (Windows limits)
+
+  status          quick summary
+
+  wipe <target>   clear local data (caught, calls, sent, contacts, all, …)
+
+  wipe all --yes  reset all data/ files (keeps config.yaml)
+
+  clear / cc        clear screen
+
+  help            this screen
+
+  exit            quit
+
+
+
+examples
+
+
+
+  intake
+
+  outtake www.youtube.com
+
+  outtake C:\path\to\document.pdf
+
+  outtake report.pdf diagram.png
+
+  outtake photo.png --airdrop
+
+  airdrop
+
+  airdrop "John's iPhone" C:\path\to\photo.png
+
+  caught contacts
+
+  caught json
+
+  caught last 5
+
+  contacts sync
+
+  sync
+
+  sync --caught
+
+  send "Shawk" Running 10 min late
+
+  calendar add love "girlfriend" "in 3h" "I love you!"
+
+  calendar status
+
+  calls
+
+  missed 10
+
+  watcher stop
+
+
+
+tips
+
+
+
+  owner: in config.yaml is you (your business / short name) — not a contact.
+
+  contacts: edit data/contacts.jsonl — match rules tag notifications.
+
+  intake: phone must be on the same Wi-Fi as this PC.
+
+  airdrop: needs OpenDrop + AWDL (macOS/Linux); Windows use ssh helper or outtake QR.
+
+  analyze: data/.analyze/latest.png — AI snapshot of last attachment (help analyze).
+
+  analyze off: config edit analyze_screenshot false
+
+  calls: watcher must be open when Phone Link shows call toasts; data/calls.jsonl (not caught).
+
+  sync: re-reads Phone Link contacts.db; auto every 30m (config edit auto_sync false to disable).
+
+  calls ttl: config edit calls_ttl 2d  ·  reminders every 10m (calls.remind_interval)
+

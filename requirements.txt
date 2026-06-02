@@ -1,0 +1,32 @@
+watchdog>=4.0.0
+PyYAML>=6.0
+ruamel.yaml>=0.18.0
+tzdata>=2024.1
+Pillow>=10.0.0
+qrcode>=7.4
+winrt-Windows.UI.Notifications.Management>=3.0
+winrt-Windows.UI.Notifications>=3.0
+winrt-Windows.Foundation>=3.0
+winrt-Windows.Foundation.Collections>=3.0
+winrt-Windows.ApplicationModel>=3.0
+
+# Optional OCR: winget install UB-Mannheim.TesseractOCR
+pytesseract>=0.3.10
+
+# Optional: messaging.method auto (Phone Link UI automation)
+pywinauto>=0.6.8
+
+# Optional: automation fallback (Appium + WinAppDriver)
+Appium-Python-Client>=4.0
+
+# Optional iPhone Camera Roll pull over USB/Wi-Fi:
+# pymobiledevice3>=4.0
+
+# Optional AirDrop (OpenDrop) — macOS or Linux+OWL; on Windows use airdrop.mode: ssh
+# https://github.com/seemoo-lab/opendrop
+opendrop>=0.13.0
+
+# Optional Google Calendar sync (calendar connect google)
+# google-api-python-client>=2.100.0
+# google-auth-oauthlib>=1.2.0
+# google-auth-httplib2>=0.2.0

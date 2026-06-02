@@ -1,0 +1,57 @@
+TeleLink - get iMessage images onto your PC (no Phone Link sync needed)
+
+Phone Link often does NOT sync photos. This uses your Wi-Fi network instead.
+
+SETUP (one time)
+================
+
+1. On PC: run TeleLink and type  listen
+   Note the line:  intake server  http://192.168.x.x:8787/intake
+
+2. iPhone must be on the SAME Wi-Fi as the PC.
+
+3. Windows Firewall: allow Python when prompted (Private network).
+
+IPHONE SHORTCUT
+===============
+
+Open Shortcuts app > + > New Shortcut
+
+Option A - Share sheet (best for images)
+----------------------------------------
+1. Add action: "Receive" > Images and Text from Share Sheet
+2. Add action: "Get Text" from Shortcut Input
+3. Add action: "Get Images" from Shortcut Input
+4. Add action: "Get Contents of URL"
+   - URL: http://YOUR-PC-IP:8787/intake
+   - Method: POST
+   - Request Body: Form
+   - Fields:
+       sender = Shawk
+       message = Text from step 2 (or empty)
+       image = Image from step 3
+5. Name it "Send to TeleLink"
+
+In iMessage: tap image > Share > Send to TeleLink
+
+Option B - curl test from PC
+----------------------------
+curl -X POST http://127.0.0.1:8787/intake ^
+  -F "sender=Shawk" ^
+  -F "message=test screenshot" ^
+  -F "image=@C:\path\to\image.png"
+
+JSON (advanced)
+---------------
+POST /intake
+Content-Type: application/json
+
+{
+  "sender": "+15551234567",
+  "message": "fix this header",
+  "image_base64": "...",
+  "filename": "shot.png"
+}
+
+Optional token (config.yaml intake.token):
+Header: X-Telelink-Token: your-secret

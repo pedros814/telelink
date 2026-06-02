@@ -1,0 +1,223 @@
+# Copy to config.yaml and edit for your machine.
+# For AI assistants: read AGENTS.md first, then run: .\telelink.ps1 agent context
+
+owner:
+  business_name: Your Business
+  personal_name_short: You
+  personal_name_full: Your Name
+  work_email: you@example.com
+  timezone: America/Denver
+  # AI/agents only — not used by TeleLink send or watcher yet
+  talking_tone: >-
+    Professional, direct, non-robotic, straightforward, human tone.
+    No em dashes.
+
+routing:
+  unmatched_label: unassigned
+  only_contacts: false
+  # Hide whole channels in watcher/caught (e.g. instagram, facebook, system)
+  ignore_channels: []
+
+phone_link:
+  # Optional override. Leave empty — TeleLink auto-finds contacts.db under
+  # %LOCALAPPDATA%\Packages\Microsoft.YourPhone_*\LocalCache\Indexed\<device>\System\Database\
+  # contacts_db: ""
+  # phone_db: ""   # optional override for SMS history (phone.db / Phone.db)
+  # calling_db: "" # optional override for call history (calling.db)
+  # Scoped filesystem fallback when package globs find nothing (PowerShell or python)
+  fallback:
+    enabled: true
+    engine: powershell       # powershell | python | off
+    packages_wide: true      # scan Packages for YourPhone/CrossDevice when _pkg_roots() empty
+    timeout_seconds: 30
+    max_results: 20
+  app_names:
+    - "Phone Link"
+    - "Your Phone"
+    - "Microsoft.YourPhone"
+  app_user_model_ids:
+    - "Microsoft.YourPhone_8wekyb3d8bbwe!App"
+    - "Microsoft.YourPhone_8wekyb3d8bbwe!Messages"
+  watch_folders:
+    - "%USERPROFILE%\\Pictures\\Phone Link"
+    - "%LOCALAPPDATA%\\Packages\\Microsoft.YourPhone_8wekyb3d8bbwe\\LocalState\\photos"
+  auto_discover_folders: true
+
+media:
+  correlate_window_seconds: 180
+  organize_by_sender: true
+  debounce_seconds: 1.5
+  # Watcher inline preview (Pillow — built-in, no extra install on Windows)
+  preview:
+    enabled: true
+    width: 58%       # % of watcher width (or columns e.g. 52)
+    # height: 24     # optional row cap
+    max_edge: 960    # downscale huge photos before render
+
+# AI snapshot for Cursor/Claude — data/.analyze/latest.png + latest.json
+# Written on each caught image/video; auto-deleted after ttl (not full attachments).
+analyze:
+  screenshot: true       # false = disable (config edit analyze_screenshot false)
+  ttl: 4m                # 4m | 10m | 1h | off — prune .analyze/ only
+  width: 700             # centered canvas (px)
+  height: 500
+  margin: 24
+  dir: .analyze          # under output.dir → data/.analyze/
+
+output:
+  dir: "./data"
+  caught_file: "caught.jsonl"
+  # auto_delete_caught: false   # default — caught messages never expire
+  # auto_delete_caught: "30m"  # remove entries older than 30 minutes
+  # auto_delete_caught: "1h"   # remove entries older than 1 hour
+  contacts_file: "contacts.jsonl"
+  sqlite_file: "telelink.db"
+  localstorage_file: "localstorage.json"
+  attachments_dir: "attachments"
+
+sync:
+  on_startup: true             # full sync when TeleLink starts (shell or watcher session)
+  import_phone_link_db: true
+  import_caught_on_startup: false
+  auto_sync: true              # background re-sync while TeleLink shell is running
+  auto_sync_interval: 15m      # 15m | 30m | 1h — config edit sync_interval 30m
+
+cache:
+  ttl_seconds: 30
+
+automation:
+  enabled: true
+  engine_chain: [pywinauto, appium]   # appium used after pywinauto fails verify (needs WinAppDriver)
+  max_attempts_per_engine: 2
+  verify_timeout_ms: 8000
+  verify_poll_ms: 400
+  pywinauto:
+    backend: uia
+  appium:
+    server_url: "http://127.0.0.1:4723"
+    use_appium_server: false
+    phone_link_app: ""                # empty = Microsoft.YourPhone_8wekyb3d8bbwe!App
+    attach_to_existing: true
+    session_timeout_seconds: 30
+  fallback:
+    send_keys_enter: true
+    minimize_showwindow: true
+
+messaging:
+  enabled: true
+  method: auto
+  log_sent: true
+  sent_log: sent.jsonl
+  # Keep only the newest N outbound SMS lines (oldest dropped on each send + at startup/watcher).
+  sent_log_max_entries: 5   # off | false | 0 = unlimited
+  auto_timeout_seconds: 12
+  auto_delay_ms: 2200
+  auto_engine: pywinauto
+  auto_send_attempts: 2           # tap Send this many times before title bar / minimize
+  auto_send_retry_gap_ms: 350     # pause between Send attempts (ms)
+  auto_ctrl_n_before_unfocus: true  # Ctrl+N right before title-bar click
+  auto_ctrl_n_gap_ms: 100           # pause after Ctrl+N before title bar (ms)
+  auto_unfocus_titlebar: true   # click title bar after Send so compose loses focus
+  auto_unfocus_delay_ms: 250    # wait after Send before Ctrl+N / title bar (ms)
+  auto_minimize_after_send: true  # click Minimize (or win.minimize) to hide Phone Link
+  auto_minimize_delay_ms: 150     # wait before minimize (ms)
+  auto_verify_before_unfocus: true   # poll compose/thread before Ctrl+N / minimize
+  auto_verify_timeout_ms: 8000       # max wait per verify pass (ms)
+  auto_verify_poll_ms: 400             # poll interval (ms)
+  auto_verify_retry_send: true         # tap Send again if compose still has text
+  auto_sent_requires_verify: true      # auto_sent=false unless verify passes
+
+intake:
+  enabled: true              # allows intake command; does not auto-start with watcher
+  host: "0.0.0.0"
+  port: 8787
+  token: ""
+  # global: cloudflared | ngrok | auto (tries cloudflared first)
+  global_tunnel: auto
+  global_server: pyhttpd       # intake global: vendored pyhttpd (HTTP range file serve)
+  # optional: your own public URL if you run a tunnel yourself
+  public_url: ""
+  # basic_auth_file: ""        # optional pyhttpd basic auth (user:pass per line)
+
+# Share PC files to phone: outtake myfile.pdf (uploads to GitHub, prints QR)
+outtake:
+  prefer: auto          # auto: git if cwd/data/outtake-repo is a clone, else GitHub API
+  transport: auto       # auto | github | airdrop — for local files (auto tries airdrop if enabled)
+  auto_delete: 30m      # delete after this (GitHub commit date; filename fallback)
+  auto_delete_poll: 30m # how often to check (watcher + interactive shell)
+  github:
+    token: ""           # required for API path; or GITHUB_TOKEN env
+    owner: ""                         # empty = your GitHub login from token
+    repo: "telelink-sharing"          # kebab-case; auto-created on first outtake
+    branch: main
+    path_prefix: outtake
+
+# AirDrop (OpenDrop) — direct PC → iPhone over AWDL (not native Windows Wi-Fi)
+# pip install opendrop  ·  https://github.com/seemoo-lab/opendrop
+airdrop:
+  enabled: false
+  mode: local           # local | ssh — use ssh on Windows to a Mac/Linux helper with AWDL
+  binary: ""            # empty = opendrop on PATH or in .venv/Scripts
+  find_timeout: 20s
+  discovery_ttl: 60s
+  interface: awdl0
+  computer_name: ""     # default: owner.personal_name_short
+  computer_model: TeleLink
+  default_receiver: ""  # iPhone name from `airdrop` list — for outtake --airdrop
+  # receivers:          # optional aliases
+  #   - alias: phone
+  #     match: "John's iPhone"
+  ssh:
+    host: ""             # e.g. user@mac-mini.local
+    opendrop_path: opendrop
+    identity_file: ""
+
+harvest:
+  enabled: true
+  poll_seconds: 5
+
+listener:
+  poll_seconds: 2
+  poll_timeout_seconds: 30   # WinRT get_notifications_async; raise if previews block the loop
+  auto_start_window: false     # true = open watcher window when TeleLink shell starts
+  auto_start_delay: 2s         # delay before auto-start (minimize + refocus shell after)
+  console_nudge: true          # periodic Enter in watcher console (keeps capture alive)
+  console_nudge_interval: 45s  # off | false | 0 to disable
+
+ocr:
+  enabled: false
+  tesseract_cmd: ""
+
+parser:
+  # Positive — boosts priority when matched
+  urgent_words: ["urgent", "asap", "today", "blocking", "broken", "down"]
+  # Negative — skip watcher/caught when message body matches
+  muted_words: ["unsubscribe", "promo", "sale", "advertisement", "newsletter"]
+
+# Call log — Phone Link missed/incoming/outgoing toasts → data/calls.jsonl
+calls:
+  enabled: true
+  file: calls.jsonl
+  ttl: 1d                  # auto-delete entries older than this
+  remind_interval: 10m     # shell reminder when missed calls exist (or intake is running)
+  sync_phone_link_db: true # import from Phone Link calling.db (same as Calls tab in app)
+  sync_limit: 200          # max rows read per sync from calling.db
+
+# Conversation history — Phone Link phone.db (Messages tab sync, ~30 days)
+convo:
+  enabled: true
+  default_limit: 50        # convo mom (without last/all/today)
+  max_all: 500             # cap for convo all mom
+  ui_fallback: true        # read Phone Link UI when phone.db missing (iPhone)
+
+# Calendar — schedule SMS (and optional Google Calendar two-way sync)
+calendar:
+  enabled: true
+  poll_seconds: 30          # how often to fire due events
+  remind_interval: 15m      # shell reminder label when events are pending
+  google:
+    enabled: false          # optional — set true after OAuth setup
+    credentials_file: ""    # path to Google OAuth client JSON (Desktop app)
+    token_file: .calendar-google-token.json
+    calendar_id: primary
+    sync_interval: 5m

@@ -1,0 +1,26 @@
+.venv/
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+dist/
+build/
+
+# Local config and runtime data (never commit secrets or client data)
+config.yaml
+config.local.yaml
+.env
+.env.*
+data/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local build / experiment artifacts
+tools/timg/
+tools/*.log
+_tmp_*
