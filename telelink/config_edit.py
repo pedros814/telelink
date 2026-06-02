@@ -301,7 +301,7 @@ def config_edit(
 ) -> tuple[str, Any, Any]:
     """Set a config value. Returns (dotted_path, old, new)."""
     if not value_parts:
-        raise ValueError("value is required — e.g. config edit business "Your Business"")
+        raise ValueError('value is required — e.g. config edit business "Your Business"')
 
     p = config_path(path)
     data = load_raw_config(p)

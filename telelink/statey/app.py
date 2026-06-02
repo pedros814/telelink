@@ -39,7 +39,7 @@ _ROOT_HELP = [
     "send <who> msg  text now (Phone Link)",
     "send in1m <who> msg  schedule SMS (in1m, in%2hour%, in%2pm today%)",
     "config          show config, paths, and contacts",
-    "config edit <key> <value>  — change config.yaml (e.g. config edit business "Your Business")",
+    'config edit <key> <value>  — change config.yaml (e.g. config edit business "Your Business")',
     "config list     all keys · config get <key>",
     "config reset    restore config.yaml from config.example.yaml",
     "how             full how-to guide (read this first)",
