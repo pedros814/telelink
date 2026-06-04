@@ -80,7 +80,7 @@ def parse_ui_timestamp(raw: str) -> str:
 
 def direction_from_item(item_text: str, sender: str, peer_name: str) -> str:
     low = (item_text or "").lower()
-    if "message you sent" in low or low.startswith("you sent"):
+    if "message you sent" in low or low.startswith("you sent") or "you:" in low or "you :" in low:
         return "out"
     sender_low = (sender or "").lower()
     if sender_low in ("you", "me"):

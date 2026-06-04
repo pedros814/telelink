@@ -1,0 +1,23 @@
+[
+  {
+    "id": "m-001",
+    "direction": "out",
+    "body": "Can you bring the documents?",
+    "timestamp": "2026-06-01T10:00:00-06:00",
+    "from_address": "+15551234567"
+  },
+  {
+    "id": "m-002",
+    "direction": "in",
+    "body": "Sure thing",
+    "timestamp": "2026-06-01T10:05:00-06:00",
+    "from_address": "+15559876543"
+  },
+  {
+    "id": "m-003",
+    "direction": "in",
+    "body": "Wait, I can't find them",
+    "timestamp": "2026-06-01T10:10:00-06:00",
+    "from_address": "+15559876543"
+  }
+]

@@ -100,6 +100,49 @@ def build_agent_context(*, caught_limit: int = 5) -> dict[str, Any]:
         ),
     }
 
+    # ARS block (§12)
+    try:
+        ars_cfg = config.get("ars") or {}
+        ars_enabled = ars_cfg.get("enabled", True) is not False
+        active: list[dict[str, Any]] = []
+        if ars_enabled:
+            try:
+                from telelink.ars_store import list_sessions
+                for row in list_sessions(config):
+                    state = str(row.get("state") or "")
+                    if state in ("stopped", "error"):
+                        continue
+                    name = str(row.get("session") or "")
+                    active.append({
+                        "session": name,
+                        "contact": str(row.get("contact_query") or ""),
+                        "state": state,
+                        "next": f"{run} ars next {name} --raw",
+                    })
+            except Exception:
+                pass
+
+        ctx["ars"] = {
+            "enabled": ars_enabled,
+            "skill_doc": ".skills/telelink/ARS.md",
+            "workflow": "start → next --raw → (agent thinks) → convo/received → send → ack → next",
+            "active_sessions": active,
+            "commands": {
+                "start": f"{run} ars start {{session}} {{contact}}",
+                "next": f"{run} ars next {{session}} --raw",
+                "status": f"{run} ars status {{session}} --raw",
+                "ack": f"{run} ars ack {{session}}",
+                "list": f"{run} ars list --raw",
+                "stop": f"{run} ars stop {{session}}",
+                "wait": f"{run} ars wait {{session}} --raw",
+            },
+            "hint": "TeleLink decides IF to reply; you decide WHAT to say via send.",
+        }
+    except Exception:
+        pass
+
+    return ctx
+
 
 def cmd_agent(args: Namespace) -> int:
     action = getattr(args, "agent_action", None) or "guide"

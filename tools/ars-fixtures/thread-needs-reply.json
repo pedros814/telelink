@@ -1,0 +1,16 @@
+[
+  {
+    "id": "m-001",
+    "direction": "out",
+    "body": "Hello!",
+    "timestamp": "2026-06-01T10:00:00-06:00",
+    "from_address": "+15551234567"
+  },
+  {
+    "id": "m-002",
+    "direction": "in",
+    "body": "Hi there, how are you?",
+    "timestamp": "2026-06-01T10:05:00-06:00",
+    "from_address": "+15559876543"
+  }
+]

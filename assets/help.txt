@@ -14,12 +14,6 @@ telelink > commands
 
   outtake <url|file…>  QR — link or GitHub share (multiple files → zip)
 
-  outtake <file> --airdrop  send file via AirDrop (OpenDrop)
-
-  airdrop         list nearby AirDrop receivers
-
-  airdrop "iPhone" <file>   send file via AirDrop
-
   caught          browse caught notifications (table, json, gron)
 
   contacts        contacts table (name → phone, match rules)
@@ -50,6 +44,24 @@ telelink > commands
 
   agent context   JSON for Cursor/Claude — tone, caught, commands
 
+  ars start <session> <contact>   auto-reply session (new window)
+
+  ars next <session> [--raw]      what to do now (agent driver)
+
+  ars status [<session>] [--raw]  session state
+
+  ars stop [<session>]            stop session(s)
+
+  ars list [--raw]                list sessions
+
+  ars ack <session> [--force]     agent turn complete
+
+  ars pause <session>             pause poll loop
+
+  ars resume <session>            resume poll loop
+
+  ars wait <session> [--raw]      block until reply needed
+
   how             full how-to guide (read this first)
 
   how <topic>     topic guide (e.g. how watcher, how intake)
@@ -59,8 +71,6 @@ telelink > commands
   help wipe           clear caught, contacts, db, attachments, …
 
   help config reset   restore config.yaml from example
-
-  help airdrop    AirDrop / OpenDrop setup (Windows limits)
 
   status          quick summary
 
@@ -87,12 +97,6 @@ examples
   outtake C:\path\to\document.pdf
 
   outtake report.pdf diagram.png
-
-  outtake photo.png --airdrop
-
-  airdrop
-
-  airdrop "John's iPhone" C:\path\to\photo.png
 
   caught contacts
 
@@ -129,8 +133,6 @@ tips
   contacts: edit data/contacts.jsonl — match rules tag notifications.
 
   intake: phone must be on the same Wi-Fi as this PC.
-
-  airdrop: needs OpenDrop + AWDL (macOS/Linux); Windows use ssh helper or outtake QR.
 
   analyze: data/.analyze/latest.png — AI snapshot of last attachment (help analyze).
 

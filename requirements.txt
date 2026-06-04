@@ -22,10 +22,6 @@ Appium-Python-Client>=4.0
 # Optional iPhone Camera Roll pull over USB/Wi-Fi:
 # pymobiledevice3>=4.0
 
-# Optional AirDrop (OpenDrop) — macOS or Linux+OWL; on Windows use airdrop.mode: ssh
-# https://github.com/seemoo-lab/opendrop
-opendrop>=0.13.0
-
 # Optional Google Calendar sync (calendar connect google)
 # google-api-python-client>=2.100.0
 # google-auth-oauthlib>=1.2.0

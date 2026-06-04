@@ -147,8 +147,6 @@ def _section_commands() -> str:
         ("intake global", "Public URL via cloudflared/ngrok"),
         ("intake stop", "Stop intake server and tunnel"),
         ("outtake <url|file…>", "QR — link or share file(s) via GitHub (multi-file → zip)"),
-        ("airdrop", "List nearby AirDrop receivers (OpenDrop)"),
-        ('airdrop "iPhone" <file>', "Send a file to iPhone via AirDrop"),
         ("calendar", "Scheduled SMS — list, add, delay, delete"),
         ("calendar status", "Calendar health + Google sync"),
         ("calls", "Recent Phone Link calls (1d log)"),
@@ -224,8 +222,6 @@ def _section_config() -> str:
         ("port", "intake.port"),
         ("token", "intake.token"),
         ("github_token", "outtake.github.token"),
-        ("airdrop_enabled", "airdrop.enabled"),
-        ("airdrop_receiver", "airdrop.default_receiver"),
         ("messaging.enabled", "messaging.enabled"),
         ("analyze_screenshot", "analyze.screenshot"),
         ("analyze_ttl", "analyze.ttl"),
@@ -651,7 +647,6 @@ def _section_help_outtake() -> str:
         _cmd("outtake www.youtube.com"),
         _cmd("outtake C:\\Users\\you\\Desktop\\brief.pdf"),
         _cmd("outtake report.pdf slide.png notes.txt"),
-        _cmd("outtake photo.png --airdrop"),
         "",
         _plain("Set outtake.github in config.yaml (token, owner, repo) or use GITHUB_TOKEN env."),
         _plain("config edit github_token <token>"),
@@ -662,55 +657,6 @@ def _section_help_outtake() -> str:
             "Cleanup runs every outtake.auto_delete_poll (default 30m) in watcher and shell."
         ),
         _plain("config edit outtake_auto_delete 1h  ·  config edit outtake_auto_delete off"),
-        _plain(
-            "Direct to iPhone (no GitHub): outtake file.pdf --airdrop — needs airdrop.enabled "
-            "and OpenDrop (help airdrop). Set outtake.transport to airdrop or auto."
-        ),
-    ]
-    return "\n".join(lines)
-
-
-def _section_help_airdrop() -> str:
-    from telelink.airdrop_send import platform_airdrop_note
-
-    lines = [
-        _heading("AirDrop — direct file to iPhone (OpenDrop)"),
-        _plain(
-            "Uses OpenDrop (https://github.com/seemoo-lab/opendrop) — protocol-compatible with "
-            "Apple AirDrop over AWDL. The iPhone must accept the transfer (tap Accept)."
-        ),
-        "",
-        _cmd("airdrop"),
-        _cmd('airdrop "John\'s iPhone" C:\\Users\\you\\Desktop\\photo.png'),
-        _cmd("airdrop 0 C:\\path\\to\\file.pdf"),
-        "",
-        _heading("Setup"),
-        _plain("pip install opendrop  (included in scripts/setup.ps1)"),
-        _plain("config edit airdrop_enabled true"),
-        _plain("config edit airdrop_receiver \"John's iPhone\"  — from the airdrop list"),
-        _plain(platform_airdrop_note()),
-        "",
-        _heading("Windows"),
-        _plain(
-            "Native Windows Wi-Fi cannot run AWDL. Use GitHub outtake (QR) on this PC, or set "
-            "airdrop.mode: ssh and airdrop.ssh.host to a Mac/Linux machine on the same network "
-            "with OpenDrop installed."
-        ),
-        _plain("config edit airdrop_mode ssh"),
-        _plain("config edit airdrop_host user@mac-mini.local"),
-        "",
-        _heading("macOS / Linux"),
-        _plain("macOS: built-in awdl0 — set iPhone AirDrop to Everyone."),
-        _plain("Linux: install OWL (https://github.com/seemoo-lab/owl) and run: sudo owl -i wlan0"),
-        "",
-        _heading("With outtake"),
-        _cmd("outtake report.pdf --airdrop"),
-        _plain("outtake.transport: auto — uses AirDrop when enabled and available, else GitHub."),
-        _plain("Multiple local files are zipped into one archive before sending."),
-        "",
-        _bullet("Run airdrop before send if receivers changed (cache expires ~60s)."),
-        _bullet("One archive per send — same as outtake multi-file zip."),
-        _bullet("GPLv3 experimental software — not affiliated with Apple."),
     ]
     return "\n".join(lines)
 
@@ -829,6 +775,41 @@ def _section_help_calendar() -> str:
     return "\n".join(lines)
 
 
+def _section_help_ars() -> str:
+    lines = [
+        _heading("ARS — Auto Reply Session"),
+        _plain(
+            "ARS watches one contact thread and tells an agent when a reply is needed. "
+            "The agent drafts and sends the SMS via the same send command."
+        ),
+        "",
+        _cmd("ars start client-ars Client"),
+        _cmd("ars next client-ars --raw"),
+        _cmd("ars ack client-ars"),
+        _cmd("ars stop client-ars"),
+        _cmd("ars list --raw"),
+        _cmd("ars pause client-ars"),
+        _cmd("ars resume client-ars"),
+        _cmd("ars wait client-ars --raw"),
+        "",
+        _heading("Agent loop"),
+        _step(1, "ars start <session> <contact> — starts background window"),
+        _step(2, "ars next <session> --raw — returns JSON with action (reply/wait/stopped)"),
+        _step(3, "If action=reply: convo/received → draft SMS → send → ars ack"),
+        _step(4, "ars next again — loops until stopped"),
+        "",
+        _heading("Config"),
+        _bullet("ars.poll_interval — how often to check (default 45s)"),
+        _bullet("ars.cooldown — debounce after reply (default 30s)"),
+        _bullet("ars.ignore_stale_hours — skip old messages (default 72h)"),
+        _bullet("ars.thread_limit — max messages to fetch (default 50)"),
+        _bullet("ars.enabled — master switch (default true)"),
+        "",
+        _plain("Full agent playbook: .skills/telelink/ARS.md"),
+    ]
+    return "\n".join(lines)
+
+
 def _section_intake_outtake() -> str:
     return "\n\n".join([_section_help_intake(), _section_help_outtake()])
 
@@ -845,10 +826,6 @@ def _section_troubleshoot() -> str:
         _bullet(
             "AI cannot see attachments? config — analyze should not be off; after a new "
             "image, read data/.analyze/latest.png (expires after analyze.ttl)."
-        ),
-        _bullet(
-            "AirDrop not working on Windows? Expected — use outtake QR or airdrop.mode ssh "
-            "to a Mac/Linux helper. help airdrop for full setup."
         ),
     ]
     return "\n".join(lines)
@@ -888,7 +865,6 @@ _HELP_TOPIC_RENDERERS: list[tuple[str, Callable[[], str]]] = [
     ("intake stop", _section_help_intake_stop),
     ("intake", _section_help_intake),
     ("outtake", _section_help_outtake),
-    ("airdrop", _section_help_airdrop),
     ("caught", _section_help_caught),
     ("contacts", _section_contacts),
     ("send", _section_send_shortcuts),
@@ -900,6 +876,7 @@ _HELP_TOPIC_RENDERERS: list[tuple[str, Callable[[], str]]] = [
     ("missed", _section_help_calls),
     ("calls", _section_help_calls),
     ("convo", _section_help_convo),
+    ("ars", _section_help_ars),
 ]
 
 _HELP_TOPIC_ALIASES: dict[str, str] = {
@@ -916,6 +893,8 @@ _HELP_TOPIC_ALIASES: dict[str, str] = {
     "ls": "config list",
     "clear-data": "wipe",
     "factory-reset": "config reset",
+    "auto-reply": "ars",
+    "autoreply": "ars",
 }
 
 
@@ -958,7 +937,6 @@ def render_help_topics_index() -> str:
         "intake global": "public intake URL",
         "intake stop": "stop intake server",
         "outtake": "share link/file to phone",
-        "airdrop": "AirDrop file to iPhone (OpenDrop)",
         "sync": "Phone Link + contacts re-sync (auto 15m)",
         "wipe": "clear local data files",
         "status": "quick summary",
@@ -967,6 +945,7 @@ def render_help_topics_index() -> str:
         "calls": "Phone Link call log (1d)",
         "missed": "missed calls table",
         "convo": "SMS thread from Phone Link phone.db",
+        "ars": "auto-reply session for agents",
     }
     for key in help_topic_names():
         table.push([key, blurbs.get(key, "")])
@@ -1019,6 +998,7 @@ def render_how_guide() -> str:
         _section_daily(),
         _section_commands(),
         _section_send_shortcuts(),
+        _section_help_ars(),
         _section_config(),
         _section_contacts(),
         _section_help_sync(),

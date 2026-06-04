@@ -726,6 +726,30 @@ def cmd_how(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ars(args: argparse.Namespace) -> int:
+    from telelink import ars_cli
+    action = getattr(args, "ars_action", None) or "list"
+    if action == "start": return ars_cli.cmd_ars_start(args)
+    if action == "stop": return ars_cli.cmd_ars_stop(args)
+    if action == "status": return ars_cli.cmd_ars_status(args)
+    if action == "list": return ars_cli.cmd_ars_list(args)
+    if action == "next": return ars_cli.cmd_ars_next(args)
+    if action == "tick": return ars_cli.cmd_ars_tick(args)
+    if action == "run": return ars_cli.cmd_ars_run(args)
+    if action == "ack": return ars_cli.cmd_ars_ack(args)
+    if action == "pause": return ars_cli.cmd_ars_pause(args)
+    if action == "resume": return ars_cli.cmd_ars_resume(args)
+    if action == "wait": return ars_cli.cmd_ars_wait(args)
+    if action == "delete":
+        from telelink.ars_store import delete_session, normalize_session_name
+        for target in getattr(args, "session_list", []):
+            delete_session(normalize_session_name(target))
+        return 0
+    from telelink import pretty
+    pretty.warn(f"unknown ars command: {action!r}")
+    return 1
+
+
 def cmd_config_edit(args: argparse.Namespace) -> int:
     from telelink.config_edit import config_edit, format_config_value, suggest_keys
     from telelink.config_edit import flatten_config, load_raw_config
@@ -1398,6 +1422,70 @@ def main() -> None:
         help="Optional topic (e.g. watcher, intake, config list)",
     )
     p_how.set_defaults(func=cmd_how)
+
+    p_ars = sub.add_parser("ars", help="Auto-reply session controls")
+    ars_sub = p_ars.add_subparsers(dest="ars_action")
+    
+    p_ars_start = ars_sub.add_parser("start", help="Start ARS session in a new window")
+    p_ars_start.add_argument("session", help="Session slug (e.g. client-ars)")
+    p_ars_start.add_argument("contact", nargs="+", help="Contact query or phone number")
+    p_ars_start.add_argument("--max-turns", type=int, default=0, help="Stop after N replies")
+    p_ars_start.add_argument("--idle", action="store_true", help="Start paused/idle")
+    p_ars_start.add_argument("--no-bootstrap-reply", action="store_true", help="Start waiting even if thread needs reply")
+    p_ars_start.add_argument("--force", action="store_true", help="Force recreate session")
+    p_ars_start.set_defaults(func=cmd_ars, ars_action="start")
+    
+    p_ars_stop = ars_sub.add_parser("stop", help="Stop one ARS session or all sessions")
+    p_ars_stop.add_argument("session", nargs="?", default=None, help="Session slug (optional)")
+    p_ars_stop.set_defaults(func=cmd_ars, ars_action="stop")
+    
+    p_ars_status = ars_sub.add_parser("status", help="Show one ARS session status")
+    p_ars_status.add_argument("session", help="Session slug")
+    p_ars_status.add_argument("--raw", action="store_true", help="Print raw JSON")
+    p_ars_status.set_defaults(func=cmd_ars, ars_action="status")
+    
+    p_ars_list = ars_sub.add_parser("list", help="List ARS sessions")
+    p_ars_list.add_argument("--raw", action="store_true", help="Print raw JSON")
+    p_ars_list.set_defaults(func=cmd_ars, ars_action="list")
+    
+    p_ars_next = ars_sub.add_parser("next", help="Run one ARS tick and print next action")
+    p_ars_next.add_argument("session", help="Session slug")
+    p_ars_next.add_argument("--raw", action="store_true", help="Print raw JSON")
+    p_ars_next.set_defaults(func=cmd_ars, ars_action="next")
+    
+    p_ars_tick = ars_sub.add_parser("tick", help="Run one ARS tick")
+    p_ars_tick.add_argument("session", help="Session slug")
+    p_ars_tick.add_argument("--raw", action="store_true", help="Print raw JSON")
+    p_ars_tick.set_defaults(func=cmd_ars, ars_action="tick")
+    
+    p_ars_run = ars_sub.add_parser("run", help="Run ARS loop (foreground)")
+    p_ars_run.add_argument("session", help="Session slug")
+    p_ars_run.add_argument("contact", nargs="+", help="Contact query or phone number")
+    p_ars_run.add_argument("--foreground", action="store_true", help="Run in current terminal")
+    p_ars_run.set_defaults(func=cmd_ars, ars_action="run")
+    
+    p_ars_ack = ars_sub.add_parser("ack", help="Agent turn complete")
+    p_ars_ack.add_argument("session", help="Session slug")
+    p_ars_ack.add_argument("--force", action="store_true", help="Force ack (manual send on phone)")
+    p_ars_ack.set_defaults(func=cmd_ars, ars_action="ack")
+    
+    p_ars_pause = ars_sub.add_parser("pause", help="Pause ARS poll loop")
+    p_ars_pause.add_argument("session", help="Session slug")
+    p_ars_pause.set_defaults(func=cmd_ars, ars_action="pause")
+    
+    p_ars_resume = ars_sub.add_parser("resume", help="Resume paused ARS session")
+    p_ars_resume.add_argument("session", help="Session slug")
+    p_ars_resume.set_defaults(func=cmd_ars, ars_action="resume")
+    
+    p_ars_wait = ars_sub.add_parser("wait", help="Block until reply needed or stopped")
+    p_ars_wait.add_argument("session", help="Session slug")
+    p_ars_wait.add_argument("--raw", action="store_true", help="Print raw JSON")
+    p_ars_wait.add_argument("--timeout", default=None, help="Max wait duration")
+    p_ars_wait.set_defaults(func=cmd_ars, ars_action="wait")
+    
+    p_ars_delete = ars_sub.add_parser("delete", help="Remove session files")
+    p_ars_delete.add_argument("session_list", nargs="+", help="Session slugs")
+    p_ars_delete.set_defaults(func=cmd_ars, ars_action="delete")
 
     p_contacts = sub.add_parser("contacts", help="Manage contacts (name → phone, match rules)")
 

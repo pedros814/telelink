@@ -15,6 +15,8 @@ def should_defer_startup_sync(config: dict) -> bool:
     """Skip bootstrap sync in the interactive shell when watcher auto-starts first."""
     if os.environ.get("TELELINK_WATCHER") == "1":
         return False
+    if os.environ.get("TELELINK_ARS") == "1":
+        return False
     sync = config.get("sync") or {}
     if sync.get("on_startup", True) is False:
         return False

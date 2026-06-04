@@ -683,8 +683,6 @@ _HELP_COMMANDS = [
     ("intake global", "public URL (tunnel + pyhttpd server)"),
     ("intake stop", "stop intake server"),
     ("outtake <url|file…>", "QR — link or GitHub share (multiple files → zip)"),
-    ("airdrop", "list AirDrop receivers (OpenDrop)"),
-    ('airdrop "iPhone" <file>', "send file via AirDrop"),
     ("auto", "auto image intake guide"),
     ("config", "status — paths, folders, intake URL"),
     ("config edit <key> <val>", "set config.yaml (auto-save)"),

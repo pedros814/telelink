@@ -209,7 +209,11 @@ def apply_merged_contacts(
 ) -> None:
     if not merged and jsonl_path.exists() and jsonl_path.stat().st_size > 2:
         return
-    rows = sorted(merged.values(), key=lambda r: (r.get("name") or "").lower())
+    by_id: dict[str, dict[str, Any]] = {}
+    for row in merged.values():
+        cid = row["id"]
+        by_id[cid] = _newer(row, by_id.get(cid, {}))
+    rows = sorted(by_id.values(), key=lambda r: (r.get("name") or "").lower())
     if db:
         db.replace_all_contacts(rows)
         db.log_sync("bootstrap", "contacts", f"{len(rows)} rows")

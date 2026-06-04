@@ -7,7 +7,7 @@ Detailed reference for agents. Main workflow: [SKILL.md](SKILL.md). **Setup from
 - **OS:** Windows 10/11
 - **Phone:** iPhone paired with **Phone Link** (Link to Windows)
 - **Python:** 3.10+ (venv via `scripts/setup.ps1`)
-- **Optional:** Tesseract OCR, `pywinauto`, `pymobiledevice3`, `cloudflared`/`ngrok`, `opendrop` (AirDrop)
+- **Optional:** Tesseract OCR, `pywinauto`, `pymobiledevice3`, `cloudflared`/`ngrok`
 
 ## Install
 
@@ -45,8 +45,6 @@ Batch files: `start.bat` (admin shell), `watcher.bat`, `listen.bat`, `telelink.p
 **Intake path:** `IntakeServer` → `POST /intake` → `ingest_upload()` → same store.
 
 **Outtake path:** `outtake_share` → GitHub API or git push → QR via `qr_terminal.py`.
-
-**AirDrop path:** `airdrop_send` → OpenDrop CLI (`find` / `send`) over AWDL — direct to iPhone.
 
 ## All CLI commands
 
@@ -238,30 +236,9 @@ outtake https://youtube.com/watch?v=…
 outtake C:\path\file.pdf
 outtake a.pdf b.png          # zip then upload
 outtake --qr / --sms
-outtake file.pdf --airdrop
 ```
 
-Config `outtake.prefer`: `auto` | git clone in `data/outtake-repo` | GitHub API.  
-Config `outtake.transport`: `auto` | `github` | `airdrop` — for local files.
-
-### `airdrop`
-
-```text
-airdrop                              # discover receivers (~20s)
-airdrop "John's iPhone" C:\file.png  # send by name
-airdrop 0 C:\file.pdf                # send by index from list
-airdrop --timeout 30                 # longer discovery scan
-```
-
-Requires `airdrop.enabled: true` and [OpenDrop](https://github.com/seemoo-lab/opendrop) (`pip install opendrop`).
-
-| Platform | Requirement |
-|----------|-------------|
-| macOS | Built-in `awdl0`; iPhone AirDrop → Everyone |
-| Linux | [OWL](https://github.com/seemoo-lab/owl) + compatible Wi-Fi (`sudo owl -i wlan0`) |
-| Windows | No native AWDL — use `airdrop.mode: ssh` + `airdrop.ssh.host`, or `outtake` QR |
-
-Discovery cache: `~/.opendrop/discover.last.json` (TTL ~60s; re-run `airdrop` if stale).
+Config `outtake.prefer`: `auto` | git clone in `data/outtake-repo` | GitHub API.
 
 ### Other
 
@@ -394,24 +371,6 @@ Module: `telelink/analyze_snapshot.py` · Help: `help analyze`.
 ### `outtake.github`
 
 `token`, `owner`, `repo` (default `telelink-sharing`), `branch`, `path_prefix`.
-
-`transport`: `auto` | `github` | `airdrop` — local file routing when `airdrop.enabled`.
-
-### `airdrop`
-
-| Key | Default | Meaning |
-|-----|---------|---------|
-| `enabled` | `false` | Gate `airdrop` command |
-| `mode` | `local` | `local` \| `ssh` (run opendrop on remote host) |
-| `binary` | `""` | Path to `opendrop`; empty = PATH / venv |
-| `find_timeout` | `20s` | Discovery scan duration |
-| `discovery_ttl` | `60s` | Warn if cache older than this |
-| `interface` | `awdl0` | AWDL interface (macOS / OWL) |
-| `default_receiver` | `""` | iPhone name for `outtake --airdrop` |
-| `ssh.host` | `""` | e.g. `user@mac-mini.local` |
-| `ssh.opendrop_path` | `opendrop` | Remote binary name |
-
-Aliases: `airdrop_enabled`, `airdrop_receiver`, `airdrop_mode`, `airdrop_host`.
 
 ### `harvest` / `listener` / `ocr` / `parser`
 

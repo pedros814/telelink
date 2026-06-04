@@ -37,6 +37,7 @@ Windows only. Phone Link must be paired. Watcher optional for `convo` / `receive
 | List contacts | `.\telelink.ps1 contacts` |
 | Missed calls | `.\telelink.ps1 missed` |
 | Share file to phone | `.\telelink.ps1 outtake C:\path\to\file.pdf` |
+| Auto-reply session with someone | `.\telelink.ps1 ars start {session} {who}` then `ars next {session} --raw` — see `.skills/telelink/ARS.md` |
 
 ### “What did my mom send me?”
 

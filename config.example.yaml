@@ -101,7 +101,8 @@ automation:
     session_timeout_seconds: 30
   fallback:
     send_keys_enter: true
-    minimize_showwindow: true
+    minimize_showwindow: true   # SW_MINIMIZE without clicking chrome (stealth cleanup)
+  stealth_ui: true               # minimize + restore your previous window after automation
 
 messaging:
   enabled: true
@@ -142,7 +143,6 @@ intake:
 # Share PC files to phone: outtake myfile.pdf (uploads to GitHub, prints QR)
 outtake:
   prefer: auto          # auto: git if cwd/data/outtake-repo is a clone, else GitHub API
-  transport: auto       # auto | github | airdrop — for local files (auto tries airdrop if enabled)
   auto_delete: 30m      # delete after this (GitHub commit date; filename fallback)
   auto_delete_poll: 30m # how often to check (watcher + interactive shell)
   github:
@@ -151,26 +151,6 @@ outtake:
     repo: "telelink-sharing"          # kebab-case; auto-created on first outtake
     branch: main
     path_prefix: outtake
-
-# AirDrop (OpenDrop) — direct PC → iPhone over AWDL (not native Windows Wi-Fi)
-# pip install opendrop  ·  https://github.com/seemoo-lab/opendrop
-airdrop:
-  enabled: false
-  mode: local           # local | ssh — use ssh on Windows to a Mac/Linux helper with AWDL
-  binary: ""            # empty = opendrop on PATH or in .venv/Scripts
-  find_timeout: 20s
-  discovery_ttl: 60s
-  interface: awdl0
-  computer_name: ""     # default: owner.personal_name_short
-  computer_model: TeleLink
-  default_receiver: ""  # iPhone name from `airdrop` list — for outtake --airdrop
-  # receivers:          # optional aliases
-  #   - alias: phone
-  #     match: "John's iPhone"
-  ssh:
-    host: ""             # e.g. user@mac-mini.local
-    opendrop_path: opendrop
-    identity_file: ""
 
 harvest:
   enabled: true
@@ -209,6 +189,30 @@ convo:
   default_limit: 50        # convo mom (without last/all/today)
   max_all: 500             # cap for convo all mom
   ui_fallback: true        # read Phone Link UI when phone.db missing (iPhone)
+  ui_navigate: true        # convo CLI may launch Phone Link and open threads
+  stealth_ui: true         # inherit automation.stealth_ui unless set false here
+
+# Auto Reply Session (ARS) — agent polling loop
+ars:
+  enabled: true
+  poll_interval: 45s
+  cooldown: 30s
+  thread_limit: 50
+  ignore_stale_hours: 72
+  # Phase 2 detect / sync
+  detect_send_via_sent_log: true
+  detect_send_via_convo: true
+  sent_match_window: 30m
+  assume_clicked_is_sent: false
+  sync_before_tick: false
+  full_sync_every: 15m
+  ui_navigate: true         # ARS ticks: open Phone Link to read thread (required when no phone.db)
+  tapback_patterns:
+    - "^Liked "
+    - "^Loved "
+    - "^Emphasized "
+    - "^Questioned "
+    - "^Reacted "
 
 # Calendar — schedule SMS (and optional Google Calendar two-way sync)
 calendar:

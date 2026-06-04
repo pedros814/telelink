@@ -2,7 +2,7 @@
 name: telelink
 description: >-
   Operate TeleLink on Windows — send SMS, read SMS (convo), read notifications
-  (caught), schedule messages, missed calls, intake/outtake/airdrop.
+  (caught), schedule messages, missed calls, intake/outtake.
   Run `.\telelink.ps1 agent context` first; read AGENTS.md. Do not explore code
   before running telelink CLI commands.
 license: MIT
@@ -25,8 +25,9 @@ metadata:
 
 | User task | Command |
 |-----------|---------|
-| Read SMS thread | `convo "Contact Name" --raw` |
-| Read notifications | `caught --json --limit 10` |
+| **What did X send me?** | `received mom` or `received last 5 mom` |
+| Read SMS thread (both ways) | `convo "Contact Name" --raw` |
+| Read notifications | `caught --raw --limit 10` |
 | Send SMS | `send "Contact Name" message` |
 | Last attachment (vision) | `data/.analyze/latest.json` → `latest.png` |
 
@@ -38,7 +39,7 @@ Use when the user:
 
 - Runs or debugs `python -m telelink` / `telelink` commands
 - Edits `config.yaml`, `data/contacts.jsonl`, or caught data
-- Sets up Phone Link, watcher, intake (LAN/global), outtake (GitHub), or airdrop (OpenDrop)
+- Sets up Phone Link, watcher, intake (LAN/global), outtake (GitHub)
 - Wants to send SMS, browse notifications, review missed calls, or sync contacts
 - Develops or extends the `telelink/` Python package
 
@@ -54,7 +55,6 @@ iPhone → Phone Link (Windows) → watcher → data/caught.jsonl
                                       ↘ data/.analyze/  (AI snapshot, short TTL)
 Phone → intake web form (LAN) ────────→ caught + attachments + .analyze
 PC files → outtake (GitHub) → QR/SMS → phone downloads
-PC files → airdrop (OpenDrop) → direct AirDrop to iPhone (AWDL; see help airdrop)
 ```
 
 | Layer | Role |
@@ -67,7 +67,6 @@ PC files → airdrop (OpenDrop) → direct AirDrop to iPhone (AWDL; see help air
 | **Calls** | Phone Link call toasts → `data/calls.jsonl`; `calls` / `missed` CLI |
 | **Intake** | Separate HTTP server (`intake` command, port 8787); baby-blue web UI |
 | **Outtake** | Upload file(s) to GitHub, print QR or SMS link |
-| **AirDrop** | OpenDrop — discover receivers, send files direct to iPhone (`airdrop` command) |
 
 ## Quick start (agent checklist)
 
@@ -105,6 +104,8 @@ Aliases: `listen` = `watcher`, `doctor` = `config`.
 | `caught --contacts-only` | Only matched contacts |
 | `caught --group channel` | Group by platform |
 | `caught last 5` | Recent rows (shell syntax) |
+| `received <who>` | Incoming SMS only — full bodies, JSON for agents |
+| `received last 5 mom` | Last N messages **from** contact |
 | `convo <who>` | SMS thread from Phone Link (`--raw` for JSONL) |
 | `convo last 5 mom` | Last N messages with contact |
 | `convo threads` | List recent Phone Link threads |
@@ -133,9 +134,6 @@ Aliases: `listen` = `watcher`, `doctor` = `config`.
 | `intake global` | Public URL (cloudflared/ngrok) |
 | `intake stop` | Stop server + tunnel |
 | `outtake <url\|file…>` | QR/SMS share; multi-file → zip → GitHub |
-| `outtake <file> --airdrop` | Send local file via AirDrop instead of GitHub |
-| `airdrop` | List nearby AirDrop receivers (OpenDrop) |
-| `airdrop "iPhone" <file>` | Send file to receiver by name or index |
 | `how` | Full terminal how-to guide |
 | `agent` / `agent context` | AI cheat sheet / JSON context (see AGENTS.md) |
 | `status` | Quick caught summary |
@@ -153,8 +151,7 @@ File: **`config.yaml`** (from `config.example.yaml`). Contacts are **not** in co
 | Phone Link | `phone_link.watch_folders`, `app_names` | Image paths + notification filter |
 | Output | `output.dir`, `caught_file`, `auto_delete_caught` | Default: caught never expires |
 | Intake | `intake.port` (8787), `intake.token`, `global_tunnel`, `global_server` | Optional auth header |
-| Outtake | `outtake.github.token`, `owner`, `repo`, `transport` | Or `GITHUB_TOKEN` env |
-| AirDrop | `airdrop.enabled`, `default_receiver`, `mode`, `ssh.host` | OpenDrop; not native Windows AWDL |
+| Outtake | `outtake.github.token`, `owner`, `repo` | Or `GITHUB_TOKEN` env |
 | Messaging | `messaging.method` (`auto` / manual), `auto_timeout_seconds` | `pywinauto` for auto-send |
 | Calendar | `calendar.enabled`, `remind_interval` (15m), `poll_seconds` | Shell shows pending count every 15m |
 | Calls | `calls.enabled`, `calls.ttl` (1d), `calls.remind_interval` (10m) | Call log in `data/calls.jsonl`; intake reminder shows missed count |
@@ -163,7 +160,7 @@ File: **`config.yaml`** (from `config.example.yaml`). Contacts are **not** in co
 | Analyze | `analyze.screenshot`, `analyze.ttl`, `analyze.width`/`height` | AI snapshot in `data/.analyze/` |
 | Media preview | `media.preview.*` | Watcher inline preview (Pillow, built-in) |
 
-**Config edit aliases:** `business` → `owner.business_name`, `tone` → `owner.talking_tone`, `port` → `intake.port`, `token` → `intake.token`, `github_token` → `outtake.github.token`, `airdrop_enabled` → `airdrop.enabled`, `airdrop_receiver` → `airdrop.default_receiver`, `analyze_screenshot` → `analyze.screenshot`, `analyze_ttl` → `analyze.ttl`.
+**Config edit aliases:** `business` → `owner.business_name`, `tone` → `owner.talking_tone`, `port` → `intake.port`, `token` → `intake.token`, `github_token` → `outtake.github.token`, `analyze_screenshot` → `analyze.screenshot`, `analyze_ttl` → `analyze.ttl`.
 
 ```text
 config edit business YourCo
@@ -217,15 +214,6 @@ Guides: `assets/iphone-intake.txt`, `assets/ios-auto-intake.txt`.
 - URL: `outtake https://example.com`
 - File(s): uploads to GitHub (public raw URL); confirms before upload
 - Needs `outtake.github.token` or `GITHUB_TOKEN`
-- Direct AirDrop: `outtake photo.png --airdrop` (needs `airdrop.enabled` + [OpenDrop](https://github.com/seemoo-lab/opendrop))
-
-## AirDrop (PC → phone, OpenDrop)
-
-- List receivers: `airdrop`
-- Send: `airdrop "John's iPhone" C:\path\to\file.png`
-- **Windows:** native Wi-Fi cannot run AWDL — use `outtake` QR, or `airdrop.mode: ssh` to a Mac/Linux helper
-- **Enable:** `config edit airdrop_enabled true` · `pip install opendrop`
-- Guide: `help airdrop` or `how` → AirDrop section
 
 ## Send SMS
 
@@ -314,7 +302,6 @@ In-terminal: `help analyze` · full guide section in `how`.
 | Wrong contact tag | `match[]` in contacts.jsonl, then `sync` |
 | Intake unreachable | Same Wi-Fi, firewall, `config` shows intake URL |
 | Outtake fails | GitHub token, repo name, network |
-| AirDrop unavailable | Windows has no AWDL — use outtake QR or ssh helper; `help airdrop` |
 | Import errors | `.\scripts\setup.ps1`, activate `.venv` |
 | AI cannot see attachment | `config get analyze.screenshot`; wait for new catch; read `data/.analyze/latest.png` before TTL |
 | Watcher preview small | Widen watcher window or `config edit` preview width 65% — separate from `.analyze` |
@@ -331,7 +318,6 @@ In-terminal: `help analyze` · full guide section in `how`.
 | `intake.py` / `intake_http.py` / `intake_runtime.py` | HTTP server + CLI |
 | `intake_tunnel.py` | cloudflared/ngrok for `intake global` |
 | `outtake_share.py` | GitHub upload + QR |
-| `airdrop_send.py` | OpenDrop discover + send wrapper |
 | `contacts.py` / `sync.py` | Contact store + multi-source sync |
 | `messaging.py` / `messaging_auto.py` | SMS compose / auto-click Send |
 | `harvest.py` | Phone Link SQLite + package cache images |

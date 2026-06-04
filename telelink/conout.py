@@ -82,3 +82,33 @@ def prepare_watcher_console() -> None:
         from telelink.watcher_console_nudge import disable_quick_edit_mode
 
         disable_quick_edit_mode()
+
+
+def prepare_ars_console() -> None:
+    """ARS window: UTF-8, unbuffered stdout, title from TELELINK_ARS_SESSION."""
+    from telelink.terminal import fix_stdio
+
+    fix_stdio()
+    os.environ.setdefault("PYTHONUNBUFFERED", "1")
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(line_buffering=True, write_through=True)
+        except Exception:
+            pass
+    if sys.platform == "win32":
+        session = (os.getenv("TELELINK_ARS_SESSION") or "").strip()
+        contact = (os.getenv("TELELINK_ARS_CONTACT") or "").strip()
+        title = "TeleLink ARS"
+        if session:
+            title = f"TeleLink ARS — {session}"
+            if contact:
+                title = f"{title} ({contact})"
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleTitleW(title)
+        except Exception:
+            pass
+        from telelink.watcher_console_nudge import disable_quick_edit_mode
+
+        disable_quick_edit_mode()

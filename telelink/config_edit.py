@@ -49,12 +49,7 @@ _STATIC_ALIASES: dict[str, str] = {
     "outtake_ttl": "outtake.auto_delete",
     "outtake_auto_delete": "outtake.auto_delete",
     "outtake_poll": "outtake.auto_delete_poll",
-    "airdrop_enabled": "airdrop.enabled",
     "convo_enabled": "convo.enabled",
-    "airdrop_receiver": "airdrop.default_receiver",
-    "airdrop_mode": "airdrop.mode",
-    "airdrop_host": "airdrop.ssh.host",
-    "outtake_transport": "outtake.transport",
     "poll": "listener.poll_seconds",
     "watcher_poll": "listener.poll_seconds",
     "watcher_auto": "listener.auto_start_window",
@@ -94,6 +89,12 @@ _STATIC_ALIASES: dict[str, str] = {
     "google_calendar": "calendar.google.enabled",
     "google_credentials": "calendar.google.credentials_file",
     "google_calendar_id": "calendar.google.calendar_id",
+    "ars": "ars.enabled",
+    "ars_enabled": "ars.enabled",
+    "ars_poll": "ars.poll_interval",
+    "ars_cooldown": "ars.cooldown",
+    "ars_limit": "ars.thread_limit",
+    "ars_stale": "ars.ignore_stale_hours",
 }
 
 for _cfg_key, _tags in _OWNER_TAG_GROUPS:

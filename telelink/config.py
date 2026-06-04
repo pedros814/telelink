@@ -188,6 +188,7 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     fallback = automation.setdefault("fallback", {})
     fallback.setdefault("send_keys_enter", True)
     fallback.setdefault("minimize_showwindow", True)
+    automation.setdefault("stealth_ui", True)
 
     raw.setdefault("owner", {})
     raw.setdefault("media", {})
@@ -238,24 +239,6 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     gh.setdefault("repo", "telelink-sharing")
     gh.setdefault("branch", "main")
     gh.setdefault("path_prefix", "outtake")
-    outtake.setdefault("transport", "auto")
-
-    airdrop = raw.setdefault("airdrop", {})
-    airdrop.setdefault("enabled", False)
-    airdrop.setdefault("mode", "local")
-    airdrop.setdefault("binary", "")
-    airdrop.setdefault("find_timeout", "20s")
-    airdrop.setdefault("discovery_ttl", "60s")
-    airdrop.setdefault("cache_dir", "")
-    airdrop.setdefault("interface", "awdl0")
-    airdrop.setdefault("computer_name", "")
-    airdrop.setdefault("computer_model", "TeleLink")
-    airdrop.setdefault("default_receiver", "")
-    airdrop.setdefault("receivers", [])
-    ssh = airdrop.setdefault("ssh", {})
-    ssh.setdefault("host", "")
-    ssh.setdefault("opendrop_path", "opendrop")
-    ssh.setdefault("identity_file", "")
 
     analyze = raw.setdefault("analyze", {})
     analyze.setdefault("screenshot", True)
@@ -286,8 +269,35 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     convo.setdefault("ui_fallback", True)
     convo.setdefault("auto_launch_phone_link", True)
     convo.setdefault("auto_open_sms_uri", True)
+    convo.setdefault("ui_navigate", True)
+    convo.setdefault("stealth_ui", True)
     convo.setdefault("launch_wait_seconds", 4)
     convo.setdefault("sms_uri_wait_seconds", 2.5)
+
+    ars = raw.setdefault("ars", {})
+    ars.setdefault("enabled", True)
+    ars.setdefault("poll_interval", "45s")
+    poll_secs = parse_duration(ars.get("poll_interval", "45s"))
+    ars["poll_interval_seconds"] = poll_secs if poll_secs else 45
+    ars.setdefault("cooldown", "30s")
+    cooldown_secs = parse_duration(ars.get("cooldown", "30s"))
+    ars["cooldown_seconds"] = cooldown_secs if cooldown_secs else 30
+    ars.setdefault("thread_limit", 50)
+    ars.setdefault("ignore_stale_hours", 72)
+    ars.setdefault("ui_navigate", True)
+    ars.setdefault(
+        "tapback_patterns",
+        [
+            "^Liked ",
+            "^Loved ",
+            "^Emphasized ",
+            "^Questioned ",
+            "^Reacted ",
+        ],
+    )
+    if not isinstance(ars.get("tapback_patterns"), list):
+        ars["tapback_patterns"] = []
+    ars["tapback_patterns"] = [str(p) for p in ars.get("tapback_patterns") if str(p).strip()]
 
     calendar = raw.setdefault("calendar", {})
     calendar.setdefault("enabled", True)

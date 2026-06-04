@@ -56,8 +56,25 @@ def owner_send_tag_help() -> list[tuple[str, str, str]]:
     return rows
 
 _TAG_RE = re.compile(r"@([A-Za-z][A-Za-z0-9_]*)")
-# Require spaces around /n so URLs like github.com/nicholasxdavis are not split.
-_NEWLINE_RE = re.compile(r"\s+/n\s+", re.IGNORECASE)
+# Spaced /n — trim surrounding whitespace (agent-friendly).
+_NEWLINE_SPACED_RE = re.compile(r"\s+/n\s+", re.IGNORECASE)
+# Tight /n runs (e.g. ./n/nWHAT) — one pass so /n/n is not blocked by the first n.
+_NEWLINE_TIGHT_RUN_RE = re.compile(r"(?<![/\w])(?:/n)+", re.IGNORECASE)
+
+
+def _expand_newlines(text: str) -> str:
+    """Turn /n and literal \\n into real newlines; avoid breaking URLs."""
+    if not text:
+        return text
+    text = text.replace("\\n", "\n")
+    text = _NEWLINE_SPACED_RE.sub("\n", text)
+
+    def _tight_run(match: re.Match[str]) -> str:
+        count = len(re.findall(r"/n", match.group(0), flags=re.IGNORECASE))
+        return "\n" * count
+
+    text = _NEWLINE_TIGHT_RUN_RE.sub(_tight_run, text)
+    return text
 
 
 def expand_message_body(body: str, config: dict[str, Any] | None) -> str:
@@ -78,7 +95,7 @@ def expand_message_body(body: str, config: dict[str, Any] | None) -> str:
         return str(val)
 
     text = _TAG_RE.sub(_replace_tag, text)
-    text = _NEWLINE_RE.sub("\n", text)
+    text = _expand_newlines(text)
     return text
 
 

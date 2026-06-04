@@ -14,6 +14,7 @@ from telelink.ui_automation.session import (
     launch_phone_link,
     open_sms_thread_uri,
 )
+from telelink.ui_stealth import maybe_focus_window, stealth_ui, ui_navigate_enabled
 
 
 def _name_aliases_for_contact(
@@ -66,44 +67,38 @@ def read_conversation_from_ui(
 
     cfg = config or {}
     convo_cfg = cfg.get("convo") or {}
-    auto_launch = convo_cfg.get("auto_launch_phone_link", True) is not False
-    auto_open_uri = convo_cfg.get("auto_open_sms_uri", True) is not False
+    allow_navigate = navigate and ui_navigate_enabled(cfg)
+    auto_launch = allow_navigate and convo_cfg.get("auto_launch_phone_link", True) is not False
+    auto_open_uri = allow_navigate and convo_cfg.get("auto_open_sms_uri", True) is not False
     launch_wait = float(convo_cfg.get("launch_wait_seconds", 4))
     uri_wait = float(convo_cfg.get("sms_uri_wait_seconds", 2.5))
 
     session = UiAutomationSession()
     aliases = _name_aliases_for_contact(display, phone_keys, config=cfg, target=target)
 
-    shell_hwnd = None
-    if sys.platform == "win32":
-        from telelink.win_console import get_console_hwnd
+    with stealth_ui(cfg) as stealth:
+        win = find_phone_link_window(session=session, config=cfg, timeout_s=0.5)
+        if win is None and auto_launch:
+            launch_phone_link(config=cfg, wait_s=launch_wait)
+            win = find_phone_link_window(session=session, config=cfg, timeout_s=launch_wait)
+        if win is None:
+            if not allow_navigate:
+                return [], "Phone Link UI skipped (background — no phone.db; open Phone Link for full thread)"
+            return [], "Phone Link is not open — launch Phone Link → Messages"
 
-        shell_hwnd = get_console_hwnd()
-
-    win = find_phone_link_window(session=session, config=cfg, timeout_s=0.5)
-    if win is None and auto_launch:
-        launch_phone_link(config=cfg, wait_s=launch_wait)
-        win = find_phone_link_window(session=session, config=cfg, timeout_s=launch_wait)
-    if win is None:
-        return [], "Phone Link is not open — launch Phone Link → Messages"
-
-    try:
-        try:
-            win.set_focus()
-        except Exception:
-            pass
+        stealth.track(win)
+        maybe_focus_window(win, cfg, force=allow_navigate)
 
         keys = navigate_actions.valid_phone_keys(phone_keys)
-        navigate_actions.ensure_messages_tab(win)
+        if allow_navigate:
+            navigate_actions.ensure_messages_tab(win)
 
-        if navigate and auto_open_uri and phone:
+        if allow_navigate and auto_open_uri and phone:
             open_sms_thread_uri(phone)
             time.sleep(max(0.5, uri_wait))
             win = find_phone_link_window(session=session, config=cfg, timeout_s=2.0) or win
-            try:
-                win.set_focus()
-            except Exception:
-                pass
+            stealth.track(win)
+            maybe_focus_window(win, cfg, force=True)
 
         header_name, header_phone = navigate_actions.read_conversation_header(win)
         if navigate_actions.header_matches(
@@ -118,7 +113,7 @@ def read_conversation_from_ui(
             if rows:
                 return rows, "phone_link_ui (visible messages — iPhone does not write phone.db locally)"
 
-        if navigate:
+        if allow_navigate:
             open_thread_fn = getattr(navigate_actions, "open_thread_orchestrated", None)
             if callable(open_thread_fn):
                 nav_result = open_thread_fn(
@@ -152,10 +147,7 @@ def read_conversation_from_ui(
         peer = header_name or display
         rows = read_actions.extract_messages(win, peer_name=peer, limit=limit)
         if not rows:
+            if not allow_navigate:
+                return [], "Phone Link UI skipped (background — no matching thread visible)"
             return [], "thread open in Phone Link but no MessageBody nodes found — scroll the thread"
         return rows, "phone_link_ui (visible messages — iPhone does not write phone.db locally)"
-    finally:
-        if sys.platform == "win32":
-            from telelink.win_console import handoff_to_shell
-
-            handoff_to_shell(uia_window=win, shell_hwnd=shell_hwnd, settle_ms=150)

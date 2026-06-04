@@ -18,7 +18,6 @@ No Mac. No paid APIs. Everything stays on your machine.
 | **Send SMS** | `send` opens Phone Link compose; optional UI automation taps Send for agents |
 | **Intake** | Phone → PC over Wi‑Fi: web form, API, or **iOS Shortcut** pushes text, links, and images |
 | **Outtake** | PC → phone: upload files to GitHub and show a **QR code** or SMS link |
-| **AirDrop** | PC → iPhone direct file transfer via [OpenDrop](https://github.com/seemoo-lab/opendrop) (when AWDL is available) |
 | **Contacts** | Match senders to people; route, filter, and resolve names for `send` |
 | **Calendar** | Schedule SMS for later; optional Google Calendar two-way sync |
 | **Call log** | Phone Link call toasts → `calls.jsonl`; `calls` / `missed` commands and reminders |
@@ -42,7 +41,7 @@ No Mac. No paid APIs. Everything stays on your machine.
                       └──► data/.analyze/  (AI snapshot — Cursor / Claude)
 
   iPhone ── Wi‑Fi ──► intake :8787  ──► same caught + attachments pipeline
-  PC files ─────────► outtake (GitHub QR/SMS) or airdrop (OpenDrop)
+  PC files ─────────► outtake (GitHub QR/SMS)
 
   calendar ─────────► scheduled SMS (SQLite) ──► fires via send / Phone Link
                       └── optional ↔ Google Calendar (two-way sync)
@@ -90,7 +89,6 @@ calendar add follow-up "Client" "in 3h" "Just sent the files — let me know."
 
 - **Intake** — iPhone uploads to your PC (Shortcut, browser, or `curl`)
 - **Outtake** — PC uploads to GitHub; phone scans QR or opens SMS link
-- **AirDrop** — direct transfer when OpenDrop + AWDL are available
 
 Install the project skill for agents: `.cursor/skills/telelink/` (copy to `~/.cursor/skills/telelink/` for all projects). Run `how` or `help <topic>` inside TeleLink for the full in-terminal guide.
 
@@ -175,11 +173,8 @@ python -m telelink how          # full how-to inside the shell
 | `intake global` | Public URL via cloudflared/ngrok |
 | `intake stop` | Stop server + tunnel |
 | `outtake <url\|file…>` | QR/SMS share; multiple files → zip → GitHub |
-| `outtake <file> --airdrop` | Send local file via AirDrop instead of GitHub |
-| `airdrop` | List nearby AirDrop receivers (OpenDrop) |
-| `airdrop "iPhone" <file>` | Send file to receiver by name or index |
 | `how` | Full terminal how-to guide |
-| `help <topic>` | e.g. `help intake`, `help calendar`, `help calls`, `help analyze`, `help airdrop` |
+| `help <topic>` | e.g. `help intake`, `help calendar`, `help calls`, `help analyze` |
 | `wipe calls` | Clear `data/calls.jsonl` |
 | `status` | Quick caught summary |
 
@@ -497,28 +492,6 @@ outtake:
 
 Files auto-delete from the repo after `outtake.auto_delete` (default 30m). Confirm before upload in the interactive flow.
 
-**Direct AirDrop instead of GitHub:**
-
-```powershell
-python -m telelink outtake photo.png --airdrop
-```
-
----
-
-## AirDrop — PC → iPhone (OpenDrop)
-
-[OpenDrop](https://github.com/seemoo-lab/opendrop) implements Apple AirDrop (AWDL) for direct file transfer.
-
-```powershell
-pip install opendrop          # or re-run scripts\setup.ps1
-config edit airdrop_enabled true
-python -m telelink airdrop                       # list receivers
-python -m telelink airdrop "John's iPhone" C:\path\to\photo.png
-python -m telelink outtake report.pdf --airdrop
-```
-
-**Windows note:** native Windows Wi‑Fi does not support AWDL. On a Windows-only PC, prefer **outtake** (GitHub QR) for reliable sharing, or set `airdrop.mode: ssh` in `config.yaml` to run OpenDrop on a Mac/Linux machine on your LAN. Run `help airdrop` inside TeleLink.
-
 ---
 
 ## AI agents — `.analyze` folder
@@ -599,7 +572,6 @@ python -m telelink sync --caught
 | Routing | `routing.only_contacts`, `ignore_channels` | Filter toasts |
 | Intake | `intake.port` (8787), `intake.token` | LAN server; optional auth |
 | Outtake | `outtake.github.token`, `repo` | Or `GITHUB_TOKEN` env |
-| AirDrop | `airdrop.enabled`, `default_receiver`, `mode`, `ssh.host` | OpenDrop |
 | Messaging | `messaging.method`, `auto_timeout_seconds` | manual / auto / adb |
 | Calendar | `calendar.enabled`, `poll_seconds`, `remind_interval` | Scheduled SMS; 15m pending reminder |
 | Calls | `calls.enabled`, `calls.ttl` (1d), `calls.remind_interval` (10m) | Call log in `data/calls.jsonl`; missed-call reminders |
@@ -625,7 +597,6 @@ config edit google_credentials C:\path\to\oauth-client.json
 | **OCR** | `winget install UB-Mannheim.TesseractOCR` then `ocr.enabled: true` |
 | **Auto-send SMS** | `messaging.method: auto` + `pip install pywinauto` — see `assets/messaging-help.txt` |
 | **Intake guides** | `assets/iphone-intake.txt`, `assets/ios-auto-intake.txt` |
-| **AirDrop** | `pip install opendrop` — `help airdrop` in shell |
 | **Command cheat sheet** | `assets/help.txt` |
 | **Agent skill** | `.cursor/skills/telelink/SKILL.md` + `reference.md` |
 | **Scheduled SMS** | `calendar add` — keep shell open for fire-offs |
@@ -640,7 +611,6 @@ config edit google_credentials C:\path\to\oauth-client.json
 - **Python 3.10+** (venv via `scripts/setup.ps1`)
 - Same Wi‑Fi for **intake** (phone and PC)
 - **GitHub token** for **outtake** file uploads (or use URL-only outtake)
-- **OpenDrop** + AWDL (or SSH helper) for **airdrop** on Windows
 - **Google OAuth client JSON** + API packages only if you enable **Google Calendar** sync (`calendar.google.enabled`)
 
 ---

@@ -25,6 +25,16 @@ def _user32():
     return ctypes.windll.user32
 
 
+def get_foreground_hwnd() -> int | None:
+    if sys.platform != "win32":
+        return None
+    try:
+        hwnd = int(_user32().GetForegroundWindow())
+        return hwnd if hwnd else None
+    except Exception:
+        return None
+
+
 def focus_window(hwnd: int) -> bool:
     if sys.platform != "win32" or not hwnd:
         return False
@@ -48,6 +58,21 @@ def focus_window(hwnd: int) -> bool:
         return True
     except Exception:
         return False
+
+
+def restore_foreground(hwnd: int | None) -> bool:
+    """Return focus to a window that was foreground before Phone Link automation."""
+    if not hwnd:
+        return False
+    try:
+        user32 = _user32()
+        if not user32.IsWindow(hwnd):
+            return False
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    except Exception:
+        pass
+    return focus_window(hwnd)
 
 
 def minimize_window(hwnd: int) -> bool:
@@ -172,12 +197,29 @@ def handoff_to_shell(
     uia_window: Any | None = None,
     shell_hwnd: int | None = None,
     settle_ms: int = 200,
+    config: dict[str, Any] | None = None,
+    previous_foreground: int | None = None,
 ) -> None:
-    """Minimize a secondary window and return focus to the TeleLink shell console."""
+    """Minimize a secondary window and return focus away from Phone Link."""
     if sys.platform != "win32":
         return
+
+    stealth = False
+    if config is not None:
+        try:
+            from telelink.ui_stealth import minimize_window_stealth, stealth_ui_enabled
+
+            stealth = stealth_ui_enabled(config)
+        except Exception:
+            stealth = False
+
     if uia_window is not None:
-        minimize_uia_window(uia_window, settle_ms=settle_ms)
+        if stealth:
+            if settle_ms > 0:
+                time.sleep(settle_ms / 1000.0)
+            minimize_window_stealth(uia_window, config)
+        else:
+            minimize_uia_window(uia_window, settle_ms=settle_ms, config=config)
     elif external_hwnd:
         if settle_ms > 0:
             time.sleep(settle_ms / 1000.0)
@@ -188,7 +230,13 @@ def handoff_to_shell(
         hwnd = find_window_by_title(external_title)
         if hwnd:
             minimize_window(hwnd)
-    refocus_telelink_shell(shell_hwnd=shell_hwnd)
+
+    if stealth and previous_foreground:
+        restore_foreground(previous_foreground)
+    elif not stealth:
+        refocus_telelink_shell(shell_hwnd=shell_hwnd)
+    elif previous_foreground:
+        restore_foreground(previous_foreground)
 
 
 def background_watcher_handoff(*, shell_hwnd: int | None = None, settle_ms: int = 400) -> None:

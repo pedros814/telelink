@@ -75,6 +75,11 @@ def append_sent_log(config: dict[str, Any], record: dict[str, Any]) -> None:
         return
     path = sent_log_path(config)
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Inject ars_session when running inside an ARS window process
+    import os
+    ars_session = os.environ.get("TELELINK_ARS_SESSION")
+    if ars_session and "ars_session" not in record:
+        record = {**record, "ars_session": ars_session}
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     prune_sent_log(config)

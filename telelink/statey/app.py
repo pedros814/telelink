@@ -10,7 +10,6 @@ from pathlib import Path
 
 from telelink import __version__, chalk, pretty
 from telelink.cli import (
-    cmd_airdrop,
     cmd_config,
     dispatch_config_command,
     cmd_contacts,
@@ -48,8 +47,6 @@ _ROOT_HELP = [
     "intake global   public URL (internet, not just LAN)",
     "intake stop     stop intake server",
     "outtake <url|file…>  QR — link or GitHub file share (multi-file → zip)",
-    "airdrop             list AirDrop receivers (OpenDrop)",
-    'airdrop "iPhone" <file>  send file via AirDrop',
     "calendar        scheduled events table",
     "calendar add …  schedule SMS for later",
     "calendar status calendar + Google sync health",
@@ -58,6 +55,7 @@ _ROOT_HELP = [
     "missed          missed calls table",
     "convo <who>     SMS thread from Phone Link (mom, +number, last 5, today)",
     "convo threads   list recent Phone Link conversations",
+    "ars             manage auto-reply sessions (start, stop, list, status)",
     "status          quick summary",
     "wipe <target>   clear local data (wipe all --yes)",
     "help <topic>    detailed how-to (e.g. help watcher, help config list)",
@@ -438,7 +436,13 @@ def _handle_contacts(statey: Statey, line: str) -> HandleResult | None:
 
 
 def _handle_root(statey: Statey, line: str) -> HandleResult | None:
-    parts = line.split()
+    try:
+        parts = shlex.split(line)
+    except ValueError as exc:
+        pretty.warn(str(exc))
+        return HandleResult()
+    if not parts:
+        return HandleResult()
     cmd = parts[0].lower()
     rest = parts[1:]
 
@@ -548,12 +552,6 @@ def _handle_root(statey: Statey, line: str) -> HandleResult | None:
         _say()
         return HandleResult()
 
-    if cmd == "airdrop":
-        ns = Namespace(target=list(rest), find_timeout=None)
-        cmd_airdrop(ns)
-        _say()
-        return HandleResult()
-
     if cmd == "outtake":
         if not rest:
             pretty.warn("usage: outtake <url>  or  outtake <file> [file ...]")
@@ -564,10 +562,8 @@ def _handle_root(statey: Statey, line: str) -> HandleResult | None:
             ns.qr = True
         if flags & {"sms", "text", "message", "msg"}:
             ns.sms = True
-        if flags & {"airdrop"}:
-            ns.airdrop = True
-        if getattr(ns, "qr", False) or getattr(ns, "sms", False) or getattr(ns, "airdrop", False):
-            skip = {"qr", "sms", "text", "message", "msg", "--qr", "--sms", "airdrop", "--airdrop"}
+        if getattr(ns, "qr", False) or getattr(ns, "sms", False):
+            skip = {"qr", "sms", "text", "message", "msg", "--qr", "--sms"}
             ns.target = [t for t in rest if t.lower().lstrip("-") not in skip]
         cmd_outtake(ns)
         _say()
@@ -634,6 +630,110 @@ def _handle_root(statey: Statey, line: str) -> HandleResult | None:
             ns.yes = True
             ns.target = [t for t in rest if t not in ("-y", "--yes")]
         cmd_wipe(ns)
+        _say()
+        return HandleResult()
+
+    if cmd == "ars":
+        from telelink import ars_cli
+        action = rest[0].lower() if rest else "list"
+        ns = Namespace()
+        
+        # Simple string-based argument parsing for common flags
+        raw = "--raw" in rest
+        force = "--force" in rest
+        idle = "--idle" in rest
+        no_bootstrap = "--no-bootstrap-reply" in rest
+        clean_args = [x for x in rest[1:] if not x.startswith("--")]
+        
+        if action == "start":
+            if not clean_args:
+                pretty.warn("usage: ars start <session> <contact>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.contact = clean_args[1:]
+            ns.max_turns = 0
+            for i, x in enumerate(rest):
+                if x == "--max-turns" and i + 1 < len(rest):
+                    ns.max_turns = int(rest[i+1])
+            ns.idle = idle
+            ns.no_bootstrap_reply = no_bootstrap
+            ns.force = force
+            ars_cli.cmd_ars_start(ns)
+        elif action == "stop":
+            ns.session = clean_args[0] if clean_args else None
+            ars_cli.cmd_ars_stop(ns)
+        elif action == "status":
+            if not clean_args:
+                pretty.warn("usage: ars status <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.raw = raw
+            ars_cli.cmd_ars_status(ns)
+        elif action == "list":
+            ns.raw = raw
+            ars_cli.cmd_ars_list(ns)
+        elif action == "next":
+            if not clean_args:
+                pretty.warn("usage: ars next <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.raw = raw
+            ars_cli.cmd_ars_next(ns)
+        elif action == "tick":
+            if not clean_args:
+                pretty.warn("usage: ars tick <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.raw = raw
+            ars_cli.cmd_ars_tick(ns)
+        elif action == "run":
+            if not clean_args:
+                pretty.warn("usage: ars run <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.contact = clean_args[1:]
+            ns.foreground = "--foreground" in rest
+            ars_cli.cmd_ars_run(ns)
+        elif action == "ack":
+            if not clean_args:
+                pretty.warn("usage: ars ack <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.force = force
+            ars_cli.cmd_ars_ack(ns)
+        elif action == "pause":
+            if not clean_args:
+                pretty.warn("usage: ars pause <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ars_cli.cmd_ars_pause(ns)
+        elif action == "resume":
+            if not clean_args:
+                pretty.warn("usage: ars resume <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ars_cli.cmd_ars_resume(ns)
+        elif action == "wait":
+            if not clean_args:
+                pretty.warn("usage: ars wait <session>")
+                return HandleResult()
+            ns.session = clean_args[0]
+            ns.raw = raw
+            ns.timeout = None
+            for i, x in enumerate(rest):
+                if x == "--timeout" and i + 1 < len(rest):
+                    ns.timeout = rest[i+1]
+            ars_cli.cmd_ars_wait(ns)
+        elif action == "delete":
+            if not clean_args:
+                pretty.warn("usage: ars delete <session>")
+                return HandleResult()
+            from telelink.ars_store import delete_session, normalize_session_name
+            for target in clean_args:
+                delete_session(normalize_session_name(target))
+        else:
+            pretty.warn(f"unknown ars command: {action!r}")
+            
         _say()
         return HandleResult()
 

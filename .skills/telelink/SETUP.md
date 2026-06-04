@@ -14,7 +14,7 @@
 |----|--------|
 | One short question, then act | Dump a 20-item checklist |
 | Say what you're doing and why in one line | Explain every config key upfront |
-| Offer **Skip** / **Later** for optional features | Require GitHub, AirDrop, or tunnels on day one |
+| Offer **Skip** / **Later** for optional features | Require GitHub or tunnels on day one |
 | Run `setup.ps1`, `config`, `watcher` for them when possible | Ask them to hand-edit YAML for things `config edit` can do |
 | Confirm success with a quick test (`caught`, `config`) | Assume setup worked without checking |
 
@@ -30,7 +30,6 @@
 | **Outtake** | `outtake` with files → QR on phone | **GitHub token** (or URL-only outtake without uploads) |
 | **Intake** | Phone → PC over Wi‑Fi | Same Wi‑Fi; firewall allow Python; optional **intake token** |
 | **Intake global** | Phone → PC from anywhere | **cloudflared** or **ngrok** on PATH |
-| **AirDrop** | `airdrop` / `outtake --airdrop` | `pip install opendrop`; on Windows often a **Mac/Linux SSH helper** |
 | **Auto-send** | Agents tap Send in Phone Link | `messaging.method: auto` (default in example); may still need a tap on iPhone |
 
 Everything else can stay at defaults.
@@ -150,7 +149,7 @@ Optional: `routing.only_contacts: true` — only if they want to **ignore** non-
 
 Ask once:
 
-> Do you want **PC → phone file sharing** (QR via GitHub), **phone → PC uploads** (Wi‑Fi form), or **AirDrop**? Pick any, all, or **none for now**.
+> Do you want **PC → phone file sharing** (QR via GitHub), **phone → PC uploads** (Wi‑Fi form), or **none for now**?
 
 #### 5a — Outtake (GitHub) — only if they want file/QR sharing
 
@@ -215,21 +214,6 @@ intake global
 
 Config: `intake.global_tunnel` (`auto` | `cloudflared` | `ngrok`).
 
-#### 5d — AirDrop — only if they insist on direct transfer
-
-Windows has **no native AWDL**. Be honest:
-
-> Real AirDrop from Windows alone usually doesn't work. Options: **outtake QR** (reliable), or a **Mac/Linux machine on your network** with OpenDrop over SSH. Want to set up SSH helper or skip?
-
-If yes on helper:
-
-```text
-config edit airdrop_enabled true
-config edit airdrop.mode ssh
-# config edit airdrop.ssh.host user@mac.local
-pip install opendrop
-```
-
 ---
 
 ## Question cheat sheet (copy-paste friendly)
@@ -245,7 +229,6 @@ Use **one** of these per message:
 7. **Intake:** "Want a Wi‑Fi upload page from your phone? (yes/skip)"
 8. **Intake lock:** "Password on that page? (word or no)"
 9. **Contacts:** "Anyone to add for send by name? name + phone, or skip."
-10. **AirDrop:** "Need direct AirDrop, or is QR sharing enough?"
 
 ---
 
@@ -259,9 +242,9 @@ Use **one** of these per message:
 | Add contact | `contacts add "Name" +1…` |
 | Test capture | `watcher` → `caught` |
 | Test intake | `intake --qr` |
-| In-app help | `how` · `help intake` · `help airdrop` |
+| In-app help | `how` · `help intake` |
 
-**Aliases:** `business`, `tone`, `port`, `token`, `github_token`, `airdrop_enabled`, `analyze_screenshot`.
+**Aliases:** `business`, `tone`, `port`, `token`, `github_token`, `analyze_screenshot`.
 
 ---
 

@@ -12,6 +12,7 @@ from telelink.ui_automation import UiAutomationSession
 from telelink.ui_automation.actions.send import click_send_with_orchestrator
 from telelink.ui_automation.actions.window import minimize_orchestrated, unfocus_compose_orchestrated
 from telelink.ui_automation.config_helpers import get_automation_config
+from telelink.ui_stealth import stealth_ui
 
 
 def _open_sms_uri(phone: str, body: str) -> str:
@@ -67,32 +68,34 @@ def auto_send_phone_link(
 
     uri = _open_sms_uri(phone, body)
     session = UiAutomationSession()
-    send_result = click_send_with_orchestrator(
-        body,
-        cfg,
-        session,
-        timeout_seconds=timeout,
-    )
+    with stealth_ui(cfg) as stealth:
+        send_result = click_send_with_orchestrator(
+            body,
+            cfg,
+            session,
+            timeout_seconds=timeout,
+        )
+        stealth.track(session.pywinauto_window)
 
-    attempts = list(send_result.get("attempts") or [])
-    send_clicked = bool(send_result.get("send_clicked"))
-    send_verified = bool(send_result.get("send_verified"))
-    verify_method = str(send_result.get("verify_method") or "")
-    engine = str(send_result.get("engine") or "")
-    fallback_used = bool(send_result.get("fallback_used"))
-    method = _method_from_send_result(send_result, auto_cfg)
+        attempts = list(send_result.get("attempts") or [])
+        send_clicked = bool(send_result.get("send_clicked"))
+        send_verified = bool(send_result.get("send_verified"))
+        verify_method = str(send_result.get("verify_method") or "")
+        engine = str(send_result.get("engine") or "")
+        fallback_used = bool(send_result.get("fallback_used"))
+        method = _method_from_send_result(send_result, auto_cfg)
 
-    unfocused = False
-    minimized = False
-    cleanup_ok = send_verified or not verify_before_unfocus
+        unfocused = False
+        minimized = False
+        cleanup_ok = send_verified or not verify_before_unfocus
 
-    if send_clicked and cleanup_ok:
-        if do_unfocus:
-            unfocus_result = unfocus_compose_orchestrated(cfg, session)
-            unfocused = bool(unfocus_result.get("ok"))
-        if do_minimize:
-            minimize_result = minimize_orchestrated(cfg, session)
-            minimized = bool(minimize_result.get("ok"))
+        if send_clicked and cleanup_ok:
+            if do_unfocus:
+                unfocus_result = unfocus_compose_orchestrated(cfg, session)
+                unfocused = bool(unfocus_result.get("ok"))
+            if do_minimize:
+                minimize_result = minimize_orchestrated(cfg, session)
+                minimized = bool(minimize_result.get("ok"))
 
     auto_sent = send_verified if requires_verify else send_clicked
 

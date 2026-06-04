@@ -142,6 +142,8 @@ def fetch_conversation(
     *,
     config: dict[str, Any],
     contact_store: Any,
+    ui_navigate: bool | None = None,
+    for_ars: bool = False,
 ) -> tuple[list[dict[str, Any]], str, str, str]:
     """
     Load messages for query. Returns (rows, display, phone, source_note).
@@ -177,6 +179,10 @@ def fetch_conversation(
 
     convo_cfg = config.get("convo") or {}
     ui_fallback = convo_cfg.get("ui_fallback", True) is not False
+    if ui_navigate is None:
+        from telelink.ui_stealth import ui_navigate_enabled
+
+        ui_navigate = ui_navigate_enabled(config)
     if not rows and ui_fallback:
         from telelink.phone_link_convo_ui import read_conversation_from_ui
 
@@ -185,29 +191,37 @@ def fetch_conversation(
             phone=phone,
             phone_keys=keys,
             limit=max_rows if query.limit else max_rows,
-            navigate=True,
+            navigate=bool(ui_navigate),
             config=config,
             target=query.target,
         )
+        if not ui_rows and for_ars and not ui_navigate:
+            ui_rows, ui_note = read_conversation_from_ui(
+                display=display,
+                phone=phone,
+                phone_keys=keys,
+                limit=max_rows if query.limit else max_rows,
+                navigate=True,
+                config=config,
+                target=query.target,
+            )
         if ui_rows:
             rows = ui_rows
             source = ui_note
 
     if not rows:
         fb_limit = max_rows
-        rows = _read_sent_fallback(config, phone=phone, display=display, limit=fb_limit)
-        if rows:
-            source = "sent.jsonl (Phone Link DB empty — outbound only)"
-        if not rows:
-            rows = _read_caught_fallback(
-                config,
-                phone=phone,
-                display=display,
-                contact_store=contact_store,
-                limit=fb_limit,
-            )
-            if rows:
-                source = "caught.jsonl (notifications — not full thread history)"
+        sent_rows = _read_sent_fallback(config, phone=phone, display=display, limit=fb_limit)
+        caught_rows = _read_caught_fallback(
+            config,
+            phone=phone,
+            display=display,
+            contact_store=contact_store,
+            limit=fb_limit,
+        )
+        if sent_rows or caught_rows:
+            rows = sent_rows + caught_rows
+            source = "sent.jsonl + caught.jsonl (fallback)"
 
     rows = _filter_rows(
         rows,

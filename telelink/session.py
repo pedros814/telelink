@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -173,11 +174,14 @@ class TeleLinkSession:
         from telelink.calls_remind import start_calls_remind_daemon
         from telelink.sync_auto import start_sync_daemon
 
+        ars_mode = os.environ.get("TELELINK_ARS") == "1"
+
         start_outtake_prune_daemon(session.config_fresh)
-        start_intake_remind_daemon(session.config_fresh)
-        start_calendar_scheduler(session.config_fresh)
-        start_calendar_remind_daemon(session.config_fresh)
-        start_calls_remind_daemon(session.config_fresh)
+        if not ars_mode:
+            start_intake_remind_daemon(session.config_fresh)
+            start_calendar_scheduler(session.config_fresh)
+            start_calendar_remind_daemon(session.config_fresh)
+            start_calls_remind_daemon(session.config_fresh)
         start_sync_daemon(session.config_fresh)
         return session
 
