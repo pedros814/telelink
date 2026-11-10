@@ -30,6 +30,7 @@ from typing import Any, Callable
 
 STATE_FILE = "zeronoshow_bridge.json"
 TOKEN_ENV = "ZERONOSHOW_BRIDGE_TOKEN"
+URL_ENV = "ZERONOSHOW_URL"
 PHONE_LINK_PROCESSES = ("PhoneExperienceHost.exe", "YourPhone.exe")
 DEFAULT_AUMID = "Microsoft.YourPhone_8wekyb3d8bbwe!App"
 
@@ -42,7 +43,7 @@ def bridge_settings(config: dict[str, Any]) -> dict[str, Any]:
     token = str(os.environ.get(TOKEN_ENV) or raw.get("token") or "").strip()
     return {
         "enabled": bool(raw.get("enabled", True)),
-        "url": str(raw.get("url") or "").strip().rstrip("/"),
+        "url": str(os.environ.get(URL_ENV) or raw.get("url") or "").strip().rstrip("/"),
         "token": token,
         "poll_seconds": max(5, int(raw.get("poll_seconds", 20))),
         "batch": max(1, min(20, int(raw.get("batch", 3)))),
@@ -111,6 +112,15 @@ def is_known_recipient(state: dict[str, Any], phone: str) -> bool:
 # ---------------------------------------------------------------- HTTP
 
 
+def _version() -> str:
+    try:
+        from telelink import __version__
+
+        return str(__version__)
+    except Exception:  # noqa: BLE001
+        return "?"
+
+
 class BridgeHttpError(RuntimeError):
     def __init__(self, status: int, message: str) -> None:
         super().__init__(f"HTTP {status}: {message}")
@@ -129,7 +139,7 @@ def api_post(settings: dict[str, Any], path: str, payload: dict[str, Any]) -> di
         headers={
             "Authorization": f"Bearer {settings['token']}",
             "Content-Type": "application/json",
-            "User-Agent": "TeleLink-ZeroNoShow-Bridge",
+            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})",
         },
     )
     try:
@@ -419,7 +429,7 @@ def cmd_zns(args: Namespace) -> int:
         return 0
 
     if not settings["url"] or not settings["token"]:
-        print(f"Configure zeronoshow.url in config.yaml and set {TOKEN_ENV}.")
+        print(f"Set {URL_ENV} and {TOKEN_ENV} (the ZeroNoShow installer does it), or zeronoshow.url in config.yaml.")
         return 1
     if str((config.get("messaging") or {}).get("method", "")).lower() not in ("auto", "phone_link_auto"):
         print("messaging.method must be 'auto' so SMS are sent without a manual click.")
