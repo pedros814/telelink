@@ -691,6 +691,12 @@ def cmd_convo(args: argparse.Namespace) -> int:
     return _cmd_convo(args)
 
 
+def cmd_zns(args: argparse.Namespace) -> int:
+    from telelink.zeronoshow_bridge import cmd_zns as _cmd_zns
+
+    return _cmd_zns(args)
+
+
 def cmd_received(args: argparse.Namespace) -> int:
     from telelink.received import cmd_received as _cmd_received
 
@@ -1610,6 +1616,19 @@ def main() -> None:
     )
     p_received.set_defaults(func=cmd_received)
 
+
+    p_zns = sub.add_parser(
+        "zns",
+        help="ZeroNoShow bridge: send ZeroNoShow SMS from the iPhone (zns run · once · status)",
+    )
+    p_zns.add_argument(
+        "zns_action",
+        nargs="?",
+        default="status",
+        choices=["run", "once", "status"],
+        help="run = loop · once = one pass · status = check config/server",
+    )
+    p_zns.set_defaults(func=cmd_zns)
 
     p_shell = sub.add_parser("shell", help="Interactive CLI")
 

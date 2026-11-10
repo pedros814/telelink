@@ -38,6 +38,7 @@ Windows only. Phone Link must be paired. Watcher optional for `convo` / `receive
 | Missed calls | `.\telelink.ps1 missed` |
 | Share file to phone | `.\telelink.ps1 outtake C:\path\to\file.pdf` |
 | Auto-reply session with someone | `.\telelink.ps1 ars start {session} {who}` then `ars next {session} --raw` — see `.skills/telelink/ARS.md` |
+| ZeroNoShow SMS bridge (send ZeroNoShow SMS from the iPhone) | `.\telelink.ps1 zns status` then `.\telelink.ps1 zns run` (or `zeronoshow-bridge.bat`) |
 
 ### “What did my mom send me?”
 

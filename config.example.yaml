@@ -225,3 +225,17 @@ calendar:
     token_file: .calendar-google-token.json
     calendar_id: primary
     sync_interval: 5m
+
+# ZeroNoShow bridge (.\telelink.ps1 zns run) — sends ZeroNoShow SMS from the iPhone.
+# Token: same value as TELELINK_BRIDGE_TOKEN on the server. Prefer the env var
+# ZERONOSHOW_BRIDGE_TOKEN over writing it here (never commit config.yaml).
+zeronoshow:
+  enabled: true
+  url: ""                    # e.g. https://app.zeronoshow.com
+  token: ""                  # or set ZERONOSHOW_BRIDGE_TOKEN
+  poll_seconds: 20
+  batch: 3                   # SMS claimed per pass
+  send_gap_seconds: 6        # pause between two SMS in Phone Link
+  inbound: true              # forward replies from numbers the bridge texted
+  inbound_window_days: 14
+  launch_phone_link: true    # start Phone Link if closed (iPhone reconnects via Bluetooth)
