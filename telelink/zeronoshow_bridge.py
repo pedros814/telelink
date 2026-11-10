@@ -33,6 +33,9 @@ TOKEN_ENV = "ZERONOSHOW_BRIDGE_TOKEN"
 URL_ENV = "ZERONOSHOW_URL"
 PHONE_LINK_PROCESSES = ("PhoneExperienceHost.exe", "YourPhone.exe")
 DEFAULT_AUMID = "Microsoft.YourPhone_8wekyb3d8bbwe!App"
+# Dernier état connu de Phone Link, envoyé au serveur avec chaque appel (affichage « Phone Link fermé »).
+_PHONE_LINK_OK = True
+TEAM_REFRESH_SECONDS = 600
 
 
 # ---------------------------------------------------------------- config / state
@@ -109,6 +112,27 @@ def is_known_recipient(state: dict[str, Any], phone: str) -> bool:
     return bool(key) and key in (state.get("recipients") or {})
 
 
+def is_team_member(state: dict[str, Any], phone: str) -> bool:
+    key = phone_key(phone)
+    return bool(key) and key in set(state.get("team_phones") or [])
+
+
+def refresh_team_phones(settings: dict[str, Any], state: dict[str, Any], now: datetime, *, post: Callable[..., dict[str, Any]] | None = None) -> None:
+    """Numéros de l'équipe ZeroNoShow (chauffeurs, commerciaux) : leurs SMS sont transmis à la messagerie."""
+    last = state.get("team_phones_at")
+    try:
+        if last and (now - datetime.fromisoformat(last)).total_seconds() < TEAM_REFRESH_SECONDS:
+            return
+    except ValueError:
+        pass
+    try:
+        data = (post or api_post)(settings, "/api/sms/telelink/contacts", {})
+        state["team_phones"] = [k for k in (phone_key(p) for p in data.get("phones") or []) if k]
+        state["team_phones_at"] = now.isoformat()
+    except Exception:  # noqa: BLE001 — on garde la liste précédente
+        pass
+
+
 # ---------------------------------------------------------------- HTTP
 
 
@@ -139,7 +163,7 @@ def api_post(settings: dict[str, Any], path: str, payload: dict[str, Any]) -> di
         headers={
             "Authorization": f"Bearer {settings['token']}",
             "Content-Type": "application/json",
-            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})",
+            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})" + ("" if _PHONE_LINK_OK else " phonelink=off"),
         },
     )
     try:
@@ -231,7 +255,10 @@ def process_outbound(
             time.sleep(settings["send_gap_seconds"])
         to = str(msg.get("to") or "")
         try:
-            record = send(to, str(msg.get("body") or ""), config=config, raw=True)
+            from telelink.phone_link_dial import UI_LOCK
+
+            with UI_LOCK:  # jamais un SMS pendant qu'un appel pilote Phone Link
+                record = send(to, str(msg.get("body") or ""), config=config, raw=True)
             status, error = classify_send_result(record)
         except Exception as exc:  # noqa: BLE001 — any failure must be reported, not retried
             status, error = "failed", f"{type(exc).__name__}: {exc}"[:300]
@@ -323,7 +350,7 @@ def select_inbound(rows: list[dict[str, Any]], state: dict[str, Any]) -> list[di
         if r["direction"] == "in"
         and r["message_id"] not in seen
         and r["body"]
-        and is_known_recipient(state, r["from"])
+        and (is_known_recipient(state, r["from"]) or is_team_member(state, r["from"]))
     ]
 
 
@@ -377,11 +404,18 @@ def run_once(config: dict[str, Any], *, log: Callable[[str], None] = print) -> d
     now = datetime.now(timezone.utc)
     prune_recipients(state, now, settings["inbound_window_days"])
 
+    global _PHONE_LINK_OK
     result = {"sent": 0, "replies": 0}
-    if not ensure_phone_link(config, launch=settings["launch_phone_link"]):
+    _PHONE_LINK_OK = ensure_phone_link(config, launch=settings["launch_phone_link"])
+    if not _PHONE_LINK_OK:
         log("[zns] Phone Link not running — waiting (open Phone Link, iPhone Bluetooth on)")
+        try:  # le serveur sait que le pont tourne mais que Phone Link est fermé
+            api_post(settings, "/api/sms/telelink/claim", {"limit": 1, "dryRun": True})
+        except Exception:  # noqa: BLE001
+            pass
         save_state(path, state)
         return result
+    refresh_team_phones(settings, state, now)
     try:
         result["sent"] = process_outbound(config, settings, state, log=log)
     finally:
@@ -400,6 +434,31 @@ def cmd_zns(args: Namespace) -> int:
     action = str(getattr(args, "zns_action", None) or "status")
     config = get_session().config_fresh()
     settings = bridge_settings(config)
+
+    if action == "ui-dump":
+        from telelink.phone_link_dial import ui_dump
+
+        out = ui_dump(config, state_path(config).parent / "phone_link_ui_dump.txt")
+        print(f"Arbre de Phone Link écrit dans {out}")
+        print("Astuce : lancez-le pendant un appel pour capturer aussi le bouton Raccrocher.")
+        return 0
+
+    if action == "call":
+        from telelink import phone_link_dial as d
+
+        numero = str(getattr(args, "zns_arg", None) or "").strip()
+        if not numero:
+            print("usage: telelink zns call +33612345678")
+            return 1
+        ok, detail = d.dial(numero, config)
+        print(f"dial: {'OK' if ok else 'ÉCHEC'} — {detail}")
+        if not ok:
+            return 1
+        t0 = time.monotonic()
+        while d.in_call(config):
+            time.sleep(1)
+        print(f"appel terminé ({int(time.monotonic() - t0)} s)")
+        return 0
 
     if action == "status":
         print(
@@ -442,6 +501,11 @@ def cmd_zns(args: Namespace) -> int:
     print(
         f"[zns] ZeroNoShow bridge → {settings['url']}  (every {settings['poll_seconds']}s, Ctrl+C to stop)"
     )
+    if (config.get("zeronoshow") or {}).get("calls", True):
+        from telelink.zeronoshow_calls import start_calls_thread
+
+        start_calls_thread(lambda: get_session().config_fresh(), bridge_settings, api_post)
+        print("[zns] appels : prêts (ZeroNoShow → iPhone, Phone Link réduit)")
     while True:
         try:
             config = get_session().config_fresh()

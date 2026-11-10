@@ -56,6 +56,22 @@ class RecipientTests(unittest.TestCase):
         ]
         self.assertEqual([r["message_id"] for r in zns.select_inbound(rows, state)], ["1"])
 
+    def test_inbound_from_team_members(self) -> None:
+        state = {"recipients": {}, "team_phones": ["749219885"]}
+        rows = [
+            {"message_id": "a", "direction": "in", "from": "07 49 21 98 85", "body": "je suis en retard"},
+            {"message_id": "b", "direction": "in", "from": "+33700000000", "body": "perso"},
+        ]
+        self.assertEqual([r["message_id"] for r in zns.select_inbound(rows, state)], ["a"])
+
+    def test_team_phones_refresh(self) -> None:
+        now = datetime.now(timezone.utc)
+        state: dict = {}
+        zns.refresh_team_phones({}, state, now, post=lambda *_: {"phones": ["+33749219885", "bad"]})
+        self.assertEqual(state["team_phones"], ["749219885"])
+        zns.refresh_team_phones({}, state, now, post=lambda *_: {"phones": []})  # trop tôt : liste gardée
+        self.assertEqual(state["team_phones"], ["749219885"])
+
 
 class OutboundLoopTests(unittest.TestCase):
     def test_claim_send_report(self) -> None:

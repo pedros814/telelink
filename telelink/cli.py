@@ -1625,9 +1625,10 @@ def main() -> None:
         "zns_action",
         nargs="?",
         default="status",
-        choices=["run", "once", "status"],
+        choices=["run", "once", "status", "ui-dump", "call"],
         help="run = loop · once = one pass · status = check config/server",
     )
+    p_zns.add_argument("zns_arg", nargs="?", default=None, help="call: number to dial (test)")
     p_zns.set_defaults(func=cmd_zns)
 
     p_shell = sub.add_parser("shell", help="Interactive CLI")

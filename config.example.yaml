@@ -239,3 +239,8 @@ zeronoshow:
   inbound: true              # forward replies from numbers the bridge texted
   inbound_window_days: 14
   launch_phone_link: true    # start Phone Link if closed (iPhone reconnects via Bluetooth)
+  calls: true               # calls requested from ZeroNoShow go out from the iPhone (Phone Link kept minimised)
+  calls_show_window: false   # true = leave Phone Link visible during calls
+  # If Phone Link's buttons are named differently on this PC, run `telelink zns ui-dump` and set:
+  # call_button_names: ["Appeler", "Call"]
+  # end_call_button_names: ["Raccrocher", "End call"]
