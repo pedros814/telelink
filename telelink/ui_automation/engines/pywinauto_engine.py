@@ -43,7 +43,9 @@ class PywinautoEngine:
 
         maybe_focus_window(win, self._config, force=True)
 
-        for spec in SEND_BUTTON_SPECS:
+        from telelink.ui_automation.locators import send_button_specs
+
+        for spec in send_button_specs(self._config):
             try:
                 btn = win.child_window(**spec)
                 if btn.exists(timeout=0.3):

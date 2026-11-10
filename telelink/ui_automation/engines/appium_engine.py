@@ -11,7 +11,7 @@ _TITLE_KEYS = ("phone link", "your phone", "messages", "messaging")
 
 _DEFAULT_LOCATORS: dict[str, tuple[str, ...]] = {
     "send_accessibility_ids": ("Send", "SendButton", "send"),
-    "send_names": ("Send", "Send message"),
+    "send_names": ("Send", "Send message", "Envoyer", "Envoyer le message"),
     "minimize_accessibility_ids": ("Minimize", "MinimizeButton"),
     "minimize_names": ("Minimize",),
     "titlebar_names": ("Title Bar",),

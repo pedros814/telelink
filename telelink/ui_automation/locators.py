@@ -16,13 +16,35 @@ FAILURE_PATTERNS = (
     "try again",
     "not sent",
     "send failed",
+    # Phone Link en français
+    "non remis",
+    "non envoyé",
+    "échec de l'envoi",
+    "échec d'envoi",
+    "impossible d'envoyer",
+    "réessayer",
 )
 
+# Phone Link suit la langue de Windows : « Send » en anglais, « Envoyer » en français.
 SEND_BUTTON_SPECS: tuple[dict[str, str], ...] = (
-    {"title_re": r"(?i)^send$", "control_type": "Button"},
-    {"title_re": r"(?i)send", "control_type": "Button"},
+    {"title_re": r"(?i)^(send|envoyer)$", "control_type": "Button"},
+    {"title_re": r"(?i)^(send|envoyer)\b", "control_type": "Button"},
     {"auto_id_re": r"(?i).*send.*", "control_type": "Button"},
+    {"title_re": r"(?i)(send|envoyer)", "control_type": "Button"},
 )
+
+
+def send_button_specs(config: dict | None = None) -> tuple[dict[str, str], ...]:
+    """Specs du bouton Envoyer ; ``messaging.send_button_names`` permet d'ajouter les noms vus sur ce PC."""
+    import re
+
+    names = ((config or {}).get("messaging") or {}).get("send_button_names") or []
+    extra = tuple(
+        {"title_re": r"(?i)^\s*" + re.escape(str(n).strip()) + r"\b", "control_type": "Button"}
+        for n in names
+        if str(n).strip()
+    )
+    return extra + SEND_BUTTON_SPECS
 
 MINIMIZE_BUTTON_SPECS: tuple[dict[str, str], ...] = (
     {"title_re": r"(?i)^minimize$", "control_type": "Button"},
