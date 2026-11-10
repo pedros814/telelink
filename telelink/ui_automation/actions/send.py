@@ -70,6 +70,10 @@ def click_send_with_orchestrator(
             if win is None:
                 return False
             ctx["win"] = win
+        if "compose_seen" not in ctx:
+            from telelink.ui_automation.verify.predicates import compose_shows_body
+
+            ctx["compose_seen"] = compose_shows_body(win, body)
         return bool(engine.click_send(win, body))
 
     def _verify(engine, ctx: dict[str, Any]) -> tuple[bool, str]:
@@ -84,6 +88,7 @@ def click_send_with_orchestrator(
             body,
             timeout_ms=int(auto_cfg.get("verify_timeout_ms", 8000)),
             poll_ms=int(auto_cfg.get("verify_poll_ms", 400)),
+            compose_seen=bool(ctx.get("compose_seen")),
         )
 
     def _last_resort(ctx: dict[str, Any]) -> tuple[bool, str]:

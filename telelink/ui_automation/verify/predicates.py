@@ -65,24 +65,38 @@ def _ui_shows_send_failure(win) -> bool:
     return False
 
 
+def _inside_compose(el) -> bool:
+    """True si l'élément est (dans) la zone de saisie : le brouillon n'est pas un message envoyé."""
+    try:
+        node = el
+        for _ in range(8):
+            ctrl = str(getattr(node.element_info, "control_type", "") or "")
+            if ctrl in COMPOSE_CONTROL_TYPES:
+                return True
+            node = node.parent()
+            if node is None:
+                return False
+    except Exception:
+        return False
+    return False
+
+
 def _thread_has_outgoing_bubble(win, body: str) -> bool:
+    """Bulle du message dans la conversation (élément de liste), jamais le brouillon de la zone de saisie."""
     exp = _normalize_body_for_match(body)
     if not exp or len(exp) < 3:
         return False
     needle = exp[:80]
     short = needle[:15] if len(needle) >= 15 else needle
     try:
-        for ctrl_type in ("ListItem", "Text", "Group"):
+        for el in win.descendants(control_type="ListItem"):
             try:
-                for el in win.descendants(control_type=ctrl_type):
-                    try:
-                        t = _normalize_body_for_match(el.window_text() or "")
-                        if not t:
-                            continue
-                        if needle in t or (short and short in t):
-                            return True
-                    except Exception:
-                        continue
+                t = _normalize_body_for_match(el.window_text() or "")
+                if not t or not (needle in t or (short and short in t)):
+                    continue
+                if _inside_compose(el):
+                    continue
+                return True
             except Exception:
                 continue
     except Exception:
@@ -90,20 +104,32 @@ def _thread_has_outgoing_bubble(win, body: str) -> bool:
     return False
 
 
+def compose_shows_body(win, body: str) -> bool:
+    """Avant le clic : le brouillon est-il lisible dans la zone de saisie ?"""
+    return _compose_still_has_body(win, body)
+
+
 def verify_send_delivered(
     win,
     body: str,
     timeout_ms: int,
     poll_ms: int,
+    *,
+    compose_seen: bool = False,
 ) -> tuple[bool, str]:
-    """Poll Phone Link UI for send success/failure signals."""
+    """Poll Phone Link UI for send success/failure signals.
+
+    « Zone de saisie vide » ne prouve l'envoi que si le brouillon y était lisible avant le clic
+    (``compose_seen``) : sinon une zone illisible passerait pour un message envoyé.
+    """
 
     def _probe() -> tuple[bool, str]:
         if _ui_shows_send_failure(win):
             return False, "failure_indicator"
-        if not _compose_still_has_body(win, body):
+        still = _compose_still_has_body(win, body)
+        if compose_seen and not still:
             return True, "compose_empty"
-        if _thread_has_outgoing_bubble(win, body):
+        if not still and _thread_has_outgoing_bubble(win, body):
             return True, "thread_bubble"
         return False, "pending"
 
