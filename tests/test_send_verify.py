@@ -97,3 +97,54 @@ class DisconnectedTests(unittest.TestCase):
         st, err = zns.classify_send_result({"send_clicked": False, "verify_method": "iphone_disconnected", "note": "x"})
         self.assertEqual(st, "failed")
         self.assertIn("iPhone non connecté", err or "")
+
+
+class SameTextTests(unittest.TestCase):
+    def test_old_identical_bubble_is_not_proof(self):
+        old = El("ListItem", BODY)  # même texte envoyé lors d'un test précédent
+        draft = El("Edit", BODY)    # Phone Link a remis le texte dans la zone de saisie
+        win = Win([old, draft])
+        before = p.count_sent_bubbles(win, BODY)
+        ok, _ = fast(win, compose_seen=True, bubbles_before=before)
+        self.assertFalse(ok)
+
+    def test_new_bubble_is_proof_even_if_draft_refilled(self):
+        draft = El("Edit", BODY)
+        win = Win([El("ListItem", BODY), draft])
+        before = p.count_sent_bubbles(win, BODY)
+        win.elements.append(El("ListItem", BODY))  # la nouvelle bulle apparaît
+        ok, method = fast(win, compose_seen=True, bubbles_before=before)
+        self.assertTrue(ok)
+        self.assertEqual(method, "new_bubble")
+
+
+class SingleClickTests(unittest.TestCase):
+    def test_send_is_never_clicked_twice(self):
+        from telelink.ui_automation.actions import send as send_mod
+
+        clicks = []
+
+        class FakeEngine:
+            name = "fake"
+
+            def available(self):
+                return True
+
+            def find_phone_link_window(self, session=None):
+                return Win([El("Edit", BODY)])
+
+            def click_send(self, win, body):
+                clicks.append(body)
+                return True
+
+        original = send_mod._build_engine_chain
+        send_mod._build_engine_chain = lambda config: ([FakeEngine(), FakeEngine()], False)
+        try:
+            cfg = {"automation": {"verify_timeout_ms": 50, "verify_poll_ms": 10, "max_attempts_per_engine": 3},
+                   "messaging": {"auto_send_attempts": 3}}
+            session = SimpleNamespace(pywinauto_window=None)
+            result = send_mod.click_send_with_orchestrator(BODY, cfg, session, timeout_seconds=1)
+        finally:
+            send_mod._build_engine_chain = original
+        self.assertEqual(len(clicks), 1, "un SMS non confirmé ne doit jamais être recliqué")
+        self.assertFalse(result["send_verified"])

@@ -70,11 +70,19 @@ def click_send_with_orchestrator(
             if win is None:
                 return False
             ctx["win"] = win
+        # UN SEUL clic sur Envoyer, quoi qu'il arrive : un SMS parti ne doit jamais repartir.
+        # Les tentatives suivantes ne recliquent pas, elles laissent seulement plus de temps à la vérification.
+        if ctx.get("clicked"):
+            return True
         if "compose_seen" not in ctx:
-            from telelink.ui_automation.verify.predicates import compose_shows_body
+            from telelink.ui_automation.verify.predicates import compose_shows_body, count_sent_bubbles
 
             ctx["compose_seen"] = compose_shows_body(win, body)
-        return bool(engine.click_send(win, body))
+            ctx["bubbles_before"] = count_sent_bubbles(win, body)
+        clicked = bool(engine.click_send(win, body))
+        if clicked:
+            ctx["clicked"] = True
+        return clicked
 
     def _verify(engine, ctx: dict[str, Any]) -> tuple[bool, str]:
         del engine
@@ -89,13 +97,19 @@ def click_send_with_orchestrator(
             timeout_ms=int(auto_cfg.get("verify_timeout_ms", 8000)),
             poll_ms=int(auto_cfg.get("verify_poll_ms", 400)),
             compose_seen=bool(ctx.get("compose_seen")),
+            bubbles_before=ctx.get("bubbles_before"),
         )
 
     def _last_resort(ctx: dict[str, Any]) -> tuple[bool, str]:
+        if ctx.get("clicked"):
+            # Envoyer a déjà été cliqué : appuyer sur Entrée risquerait un second SMS.
+            return False, "already_clicked"
         if not auto_cfg.get("fallback", {}).get("send_keys_enter", True):
             return False, "fallback_disabled"
         win = ctx.get("win")
         sent = keys_engine.click_send(win, body)
+        if sent:
+            ctx["clicked"] = True
         return sent, "fallback_keys"
 
     result = run_action(

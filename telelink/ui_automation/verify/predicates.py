@@ -113,27 +113,38 @@ def _inside_compose(el) -> bool:
     return False
 
 
-def _thread_has_outgoing_bubble(win, body: str) -> bool:
-    """Bulle du message dans la conversation (élément de liste), jamais le brouillon de la zone de saisie."""
+def count_sent_bubbles(win, body: str) -> int:
+    """Nombre d'éléments de la conversation contenant ce texte, hors zone de saisie (brouillon exclu).
+
+    Sert à comparer avant / après le clic : seul un nouvel élément prouve l'envoi, même quand des
+    messages identiques ont déjà été envoyés (tests répétés, relances au même texte).
+    """
     exp = _normalize_body_for_match(body)
     if not exp or len(exp) < 3:
-        return False
+        return 0
     needle = exp[:80]
     short = needle[:15] if len(needle) >= 15 else needle
-    try:
-        for el in win.descendants(control_type="ListItem"):
-            try:
-                t = _normalize_body_for_match(el.window_text() or "")
-                if not t or not (needle in t or (short and short in t)):
+    n = 0
+    for ctrl_type in ("ListItem", "Text", "Group"):
+        try:
+            for el in win.descendants(control_type=ctrl_type):
+                try:
+                    t = _normalize_body_for_match(el.window_text() or "")
+                    if not t or not (needle in t or (short and short in t)):
+                        continue
+                    if _inside_compose(el):
+                        continue
+                    n += 1
+                except Exception:
                     continue
-                if _inside_compose(el):
-                    continue
-                return True
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return False
+        except Exception:
+            continue
+    return n
+
+
+def _thread_has_outgoing_bubble(win, body: str) -> bool:
+    """Compatibilité : une bulle contenant ce texte existe (hors brouillon)."""
+    return count_sent_bubbles(win, body) > 0
 
 
 def compose_shows_body(win, body: str) -> bool:
@@ -148,11 +159,14 @@ def verify_send_delivered(
     poll_ms: int,
     *,
     compose_seen: bool = False,
+    bubbles_before: int | None = None,
 ) -> tuple[bool, str]:
     """Poll Phone Link UI for send success/failure signals.
 
-    « Zone de saisie vide » ne prouve l'envoi que si le brouillon y était lisible avant le clic
-    (``compose_seen``) : sinon une zone illisible passerait pour un message envoyé.
+    Preuves d'envoi acceptées :
+    - une bulle de plus qu'avant le clic (``bubbles_before``), hors zone de saisie ;
+    - la zone de saisie vidée, seulement si le brouillon y était lisible avant le clic (``compose_seen``).
+    Sans compte « avant », une bulle existante ne suffit que si la zone de saisie est vide.
     """
 
     def _probe() -> tuple[bool, str]:
@@ -160,10 +174,12 @@ def verify_send_delivered(
             return False, "iphone_disconnected"
         if _ui_shows_send_failure(win):
             return False, "failure_indicator"
+        if bubbles_before is not None and count_sent_bubbles(win, body) > bubbles_before:
+            return True, "new_bubble"
         still = _compose_still_has_body(win, body)
         if compose_seen and not still:
             return True, "compose_empty"
-        if not still and _thread_has_outgoing_bubble(win, body):
+        if bubbles_before is None and not still and _thread_has_outgoing_bubble(win, body):
             return True, "thread_bubble"
         return False, "pending"
 

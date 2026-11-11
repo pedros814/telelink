@@ -36,6 +36,8 @@ DISCONNECTED_PATTERNS = (
 
 # Phone Link suit la langue de Windows : « Send » en anglais, « Envoyer » en français.
 SEND_BUTTON_SPECS: tuple[dict[str, str], ...] = (
+    # Relevé sur le PC (Phone Link FR) : name='Envoyer' auto_id='SendMessageButton'.
+    {"auto_id": "SendMessageButton", "control_type": "Button"},
     {"title_re": r"(?i)^(send|envoyer)$", "control_type": "Button"},
     {"title_re": r"(?i)^(send|envoyer)\b", "control_type": "Button"},
     {"auto_id_re": r"(?i).*send.*", "control_type": "Button"},
