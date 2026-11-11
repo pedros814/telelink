@@ -64,6 +64,23 @@ def handle_call(
         return "echec"
 
     log(f"[zns] call  → {numero[:4]}****")
+    _call_hidden(True)
+    try:
+        return _follow_call(call_id, numero, config, report=report, dialer=dialer, log=log, sleep=sleep, now=now, started_wall=started_wall)
+    finally:
+        _call_hidden(False)
+
+
+def _call_hidden(active: bool) -> None:
+    try:
+        from telelink.phone_link_hide import set_call_active
+
+        set_call_active(active)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _follow_call(call_id, numero, config, *, report, dialer, log, sleep, now, started_wall) -> str:
     start = now()
     misses = 0
     hangup_sent = False

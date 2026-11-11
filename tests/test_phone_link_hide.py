@@ -38,3 +38,27 @@ class HideTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuietTests(unittest.TestCase):
+    def test_no_show_during_call_and_just_after_send(self):
+        import time as _t
+
+        from telelink import phone_link_hide as h
+
+        h._quiet_until = 0.0
+        h.set_call_active(True)
+        self.assertFalse(h.user_may_show())          # appel en cours : jamais à l'écran
+        h.set_call_active(False)
+        self.assertFalse(h.user_may_show())          # juste après : délai de calme
+        self.assertTrue(h.user_may_show(_t.monotonic() + h.QUIET_AFTER_AUTOMATION_S + 1))
+
+    def test_busy_lock_starts_quiet_period(self):
+        import threading
+
+        from telelink import phone_link_hide as h
+
+        h._quiet_until = 0.0
+        lock = threading.Lock()
+        lock.acquire()                                 # un envoi est en cours
+        h.watch_once(lock) if h.sys.platform == "win32" else self.skipTest("Windows")

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import time
 from typing import Any
 
 OFFSCREEN_X = -32000
@@ -24,6 +25,26 @@ PHONE_LINK_PROCESSES = ("phoneexperiencehost.exe", "yourphone.exe")
 
 # hwnd -> (left, top, right, bottom) on-screen rect remembered before hiding
 _saved_rects: dict[int, tuple[int, int, int, int]] = {}
+
+# Après un envoi, Windows laisse souvent Phone Link au premier plan : ce n'est pas l'utilisateur qui l'a
+# ouvert. Pendant ce délai (et pendant tout un appel), on ne le remet jamais à l'écran.
+QUIET_AFTER_AUTOMATION_S = 8.0
+_quiet_until = 0.0
+_call_active = False
+
+
+def set_call_active(active: bool) -> None:
+    """Appel en cours par le pont : Phone Link reste hors écran même s'il passe au premier plan."""
+    global _call_active, _quiet_until
+    _call_active = bool(active)
+    if not active:
+        _quiet_until = max(_quiet_until, time.monotonic() + QUIET_AFTER_AUTOMATION_S)
+
+
+def user_may_show(now: float | None = None) -> bool:
+    """L'utilisateur peut-il être à l'origine du premier plan ? (ni appel en cours, ni envoi récent)"""
+    t = time.monotonic() if now is None else now
+    return not _call_active and t >= _quiet_until
 
 
 def window_mode(config: dict[str, Any] | None) -> str:
@@ -182,14 +203,20 @@ def watch_once(lock: Any) -> None:
     """One pass: hide Phone Link unless the user is looking at it; never during an automation."""
     if sys.platform != "win32":
         return
+    global _quiet_until
     acquired = lock.acquire(blocking=False)
+    if not acquired:
+        # Envoi ou appel en cours : on ne touche à rien, et on ignore le premier plan juste après.
+        _quiet_until = time.monotonic() + QUIET_AFTER_AUTOMATION_S
+        return
     try:
         foreground = int(_user32().GetForegroundWindow() or 0)
+        allow_show = user_may_show()
         for hwnd in phone_link_hwnds():
             rect = _rect(hwnd)
             if rect is None:
                 continue
-            action = decide(hwnd, rect=rect, foreground=hwnd == foreground, automation_running=not acquired)
+            action = decide(hwnd, rect=rect, foreground=allow_show and hwnd == foreground, automation_running=False)
             if action == "hide":
                 hide_hwnd(hwnd)
             elif action == "show":
