@@ -79,6 +79,68 @@ def _composer_text(edit: Any) -> str:
         return ""
 
 
+def _clipboard_paste(win: Any, edit: Any, text: str) -> None:
+    """Colle le texte dans la zone de saisie (retours à la ligne, emojis : intacts, jamais d'Entrée).
+
+    Le presse-papiers de l'utilisateur est remis tel qu'il était.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    from pywinauto.keyboard import send_keys
+
+    u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
+    k32.GlobalAlloc.restype = wintypes.HGLOBAL
+    k32.GlobalLock.restype = ctypes.c_void_p
+    u32.GetClipboardData.restype = wintypes.HANDLE
+    CF_UNICODETEXT, GMEM_MOVEABLE = 13, 0x0002
+
+    def _get() -> str | None:
+        if not u32.OpenClipboard(0):
+            return None
+        try:
+            h = u32.GetClipboardData(CF_UNICODETEXT)
+            if not h:
+                return None
+            p = k32.GlobalLock(h)
+            try:
+                return ctypes.wstring_at(p) if p else None
+            finally:
+                k32.GlobalUnlock(h)
+        finally:
+            u32.CloseClipboard()
+
+    def _set(value: str) -> bool:
+        data = (value + "\0").encode("utf-16-le")
+        h = k32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+        p = k32.GlobalLock(h)
+        ctypes.memmove(p, data, len(data))
+        k32.GlobalUnlock(h)
+        for _ in range(10):
+            if u32.OpenClipboard(0):
+                try:
+                    u32.EmptyClipboard()
+                    return bool(u32.SetClipboardData(CF_UNICODETEXT, h))
+                finally:
+                    u32.CloseClipboard()
+            time.sleep(0.05)
+        return False
+
+    previous = _get()
+    try:
+        if not _set(text):
+            raise RuntimeError("presse-papiers indisponible")
+        win.set_focus()
+        time.sleep(0.25)
+        edit.set_focus()
+        time.sleep(0.15)
+        send_keys("^v")
+        time.sleep(0.4)
+    finally:
+        if previous is not None:
+            _set(previous)
+
+
 def _no_account(win: Any) -> bool:
     from telelink.ui_automation.find import find_control
 
@@ -155,6 +217,13 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
                     if want and want[:20] in current:
                         win, edit = w, e
                         break
+                    if not current:
+                        # Relevé sur le PC : WhatsApp Desktop ignore le texte du lien ; zone vide → on colle le message.
+                        _clipboard_paste(w, e, text)
+                        if want[:20] in _norm(_composer_text(e)):
+                            win, edit = w, e
+                            break
+                        continue
                     if current and time.monotonic() > deadline - timeout_s + 3:
                         # WhatsApp garde un brouillon existant et ignore le texte du lien : on n'envoie JAMAIS
                         # un brouillon qui n'est pas le nôtre.
