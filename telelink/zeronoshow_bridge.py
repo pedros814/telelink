@@ -263,7 +263,13 @@ def process_outbound(
             from telelink.phone_link_dial import UI_LOCK
 
             with UI_LOCK:  # jamais un SMS pendant qu'un appel pilote Phone Link
-                record = send(to, str(msg.get("body") or ""), config=config, raw=True)
+                if str(msg.get("canal") or "sms") == "whatsapp":
+                    # WhatsApp du poste (WhatsApp pour Windows), demandé par un clic humain dans ZeroNoShow.
+                    from telelink.whatsapp_desktop import send_whatsapp
+
+                    record = send_whatsapp(to, str(msg.get("body") or ""), config=config)
+                else:
+                    record = send(to, str(msg.get("body") or ""), config=config, raw=True)
             status, error = classify_send_result(record)
         except Exception as exc:  # noqa: BLE001 — any failure must be reported, not retried
             status, error = "failed", f"{type(exc).__name__}: {exc}"[:300]

@@ -105,3 +105,30 @@ class OutboundLoopTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhatsappChannelTests(unittest.TestCase):
+    def test_whatsapp_messages_go_through_whatsapp_desktop(self):
+        import sys
+        import types
+
+        sent = []
+        fake = types.ModuleType("telelink.whatsapp_desktop")
+        fake.send_whatsapp = lambda to, body, config=None: sent.append((to, body)) or {"auto_sent": True, "send_clicked": True}
+        sys.modules["telelink.whatsapp_desktop"] = fake
+        try:
+            posts = []
+
+            def post(_s, path, payload):
+                posts.append((path, payload))
+                if path.endswith("/claim"):
+                    return {"messages": [{"id": "wa-message-01", "to": "+33612345678", "body": "Bonjour", "canal": "whatsapp"}]}
+                return {"ok": True}
+
+            sms = []
+            zns.process_outbound({}, SETTINGS, {"recipients": {}}, send=lambda *a, **k: sms.append(a) or {}, post=post, log=lambda _m: None)
+        finally:
+            del sys.modules["telelink.whatsapp_desktop"]
+        self.assertEqual(sent, [("+33612345678", "Bonjour")])
+        self.assertEqual(sms, [], "un WhatsApp ne doit jamais partir par SMS")
+        self.assertEqual([p for path, p in posts if path.endswith("/report")][0]["status"], "sent")
