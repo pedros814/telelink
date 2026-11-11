@@ -90,13 +90,21 @@ def _clipboard_paste(win: Any, edit: Any, text: str) -> None:
     from pywinauto.keyboard import send_keys
 
     u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
+    # Types explicites : sans eux, les poignées 64 bits débordent (relevé sur le PC).
+    k32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
     k32.GlobalAlloc.restype = wintypes.HGLOBAL
+    k32.GlobalLock.argtypes = [wintypes.HGLOBAL]
     k32.GlobalLock.restype = ctypes.c_void_p
+    k32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+    u32.OpenClipboard.argtypes = [wintypes.HWND]
+    u32.GetClipboardData.argtypes = [wintypes.UINT]
     u32.GetClipboardData.restype = wintypes.HANDLE
+    u32.SetClipboardData.argtypes = [wintypes.UINT, wintypes.HANDLE]
+    u32.SetClipboardData.restype = wintypes.HANDLE
     CF_UNICODETEXT, GMEM_MOVEABLE = 13, 0x0002
 
     def _get() -> str | None:
-        if not u32.OpenClipboard(0):
+        if not u32.OpenClipboard(None):
             return None
         try:
             h = u32.GetClipboardData(CF_UNICODETEXT)
@@ -117,7 +125,7 @@ def _clipboard_paste(win: Any, edit: Any, text: str) -> None:
         ctypes.memmove(p, data, len(data))
         k32.GlobalUnlock(h)
         for _ in range(10):
-            if u32.OpenClipboard(0):
+            if u32.OpenClipboard(None):
                 try:
                     u32.EmptyClipboard()
                     return bool(u32.SetClipboardData(CF_UNICODETEXT, h))
