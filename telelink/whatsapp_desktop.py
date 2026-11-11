@@ -134,19 +134,44 @@ def _clipboard_paste(win: Any, edit: Any, text: str) -> None:
             time.sleep(0.05)
         return False
 
+    hwnd = int(win.handle)
+    ensure_whatsapp_foreground(hwnd)
     previous = _get()
     try:
         if not _set(text):
             raise RuntimeError("presse-papiers indisponible")
-        win.set_focus()
-        time.sleep(0.25)
-        edit.set_focus()
+        try:
+            edit.element_info.element.SetFocus()  # focus de l'élément (UIA), sans changer de fenêtre
+        except Exception:  # noqa: BLE001
+            pass
         time.sleep(0.15)
+        ensure_whatsapp_foreground(hwnd)  # vérifié juste avant la frappe : sinon on ne tape RIEN
         send_keys("^v")
         time.sleep(0.4)
     finally:
         if previous is not None:
             _set(previous)
+
+
+class NotForeground(RuntimeError):
+    """WhatsApp n'est pas la fenêtre active : aucune touche ne doit partir (elle tomberait ailleurs)."""
+
+
+def ensure_whatsapp_foreground(hwnd: int) -> None:
+    import ctypes
+
+    u32 = ctypes.windll.user32
+    if int(u32.GetForegroundWindow() or 0) == hwnd:
+        return
+    try:
+        from telelink.win_console import focus_window
+
+        focus_window(hwnd)
+    except Exception:  # noqa: BLE001
+        pass
+    time.sleep(0.2)
+    if int(u32.GetForegroundWindow() or 0) != hwnd:
+        raise NotForeground("WhatsApp n'a pas le premier plan : rien n'a été tapé")
 
 
 def _no_account(win: Any) -> bool:
@@ -209,6 +234,7 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
             subprocess.run(["cmd", "/c", "start", "", wa_uri(phone, text)], check=False,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             opened_at = time.monotonic()
+            pasted = False
             want = _norm(text)[:40]
             deadline = time.monotonic() + timeout_s
             win = edit = None
@@ -226,10 +252,14 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
                     if want and want[:20] in current:
                         win, edit = w, e
                         break
-                    if not current and time.monotonic() - opened_at >= 2.0:
+                    if not current and not pasted and time.monotonic() - opened_at >= 2.0:
                         # Laisser WhatsApp basculer sur la bonne conversation avant de coller (jamais dans la précédente).
                         # Relevé sur le PC : WhatsApp Desktop ignore le texte du lien ; zone vide → on colle le message.
-                        _clipboard_paste(w, e, text)
+                        pasted = True  # une seule tentative de collage par message
+                        try:
+                            _clipboard_paste(w, e, text)
+                        except NotForeground as exc:
+                            return {**base, "note": str(exc), "verify_method": "not_foreground"}
                         if want[:20] in _norm(_composer_text(e)):
                             win, edit = w, e
                             break
