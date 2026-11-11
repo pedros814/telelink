@@ -152,6 +152,15 @@ class BridgeHttpError(RuntimeError):
         self.status = status
 
 
+def _maj_tag() -> str:
+    try:
+        from telelink.zeronoshow_update import current_version
+
+        return f" maj={current_version()}"
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def api_post(settings: dict[str, Any], path: str, payload: dict[str, Any]) -> dict[str, Any]:
     if not settings["url"]:
         raise RuntimeError("zeronoshow.url is not set in config.yaml")
@@ -164,7 +173,7 @@ def api_post(settings: dict[str, Any], path: str, payload: dict[str, Any]) -> di
         headers={
             "Authorization": f"Bearer {settings['token']}",
             "Content-Type": "application/json",
-            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})" + ("" if _PHONE_LINK_OK else " phonelink=off") + ("" if _IPHONE_OK else " iphone=off"),
+            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})" + ("" if _PHONE_LINK_OK else " phonelink=off") + ("" if _IPHONE_OK else " iphone=off") + _maj_tag(),
         },
     )
     try:
@@ -479,6 +488,25 @@ def cmd_zns(args: Namespace) -> int:
         print(f"appel terminé ({int(time.monotonic() - t0)} s)")
         return 0
 
+    if action == "relance-auto":
+        from telelink.zeronoshow_update import install_watchdog_task
+
+        ok, detail = install_watchdog_task()
+        print("Relance automatique installée (tâche « ZeroNoShow - pont iPhone »)." if ok else f"Échec : {detail}")
+        return 0 if ok else 1
+
+    if action == "maj":
+        from telelink.zeronoshow_update import check_and_update, local_version
+
+        if not settings["url"] or not settings["token"]:
+            print(f"Set {URL_ENV} and {TOKEN_ENV}.")
+            return 1
+        print(f"version locale : {local_version()}")
+        result = check_and_update(settings, post=api_post)
+        print({"a_jour": "Le pont est à jour.", "mis_a_jour": "Pont mis à jour : relancez-le (ou attendez la relance automatique).",
+               "occupe": "Un envoi ou un appel est en cours : réessayez dans un instant."}.get(result, result))
+        return 0 if result in ("a_jour", "mis_a_jour") else 1
+
     if action == "show":
         from telelink.phone_link_hide import show_all
 
@@ -523,9 +551,18 @@ def cmd_zns(args: Namespace) -> int:
         print(json.dumps(run_once(config)))
         return 0
 
+    from telelink.zeronoshow_update import acquire_single_instance, ensure_watchdog_task, start_update_thread
+
+    if not acquire_single_instance():
+        print("[zns] un pont tourne déjà sur ce poste : rien à faire.")
+        return 3
     print(
         f"[zns] ZeroNoShow bridge → {settings['url']}  (every {settings['poll_seconds']}s, Ctrl+C to stop)"
     )
+    ensure_watchdog_task()
+    if (config.get("zeronoshow") or {}).get("auto_update", True):
+        start_update_thread(lambda: bridge_settings(get_session().config_fresh()), api_post)
+        print("[zns] mise à jour automatique : active (vérification au démarrage puis toutes les 6 h)")
     if (config.get("zeronoshow") or {}).get("calls", True):
         from telelink.zeronoshow_calls import start_calls_thread
 
