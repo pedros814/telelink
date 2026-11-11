@@ -25,6 +25,15 @@ FAILURE_PATTERNS = (
     "réessayer",
 )
 
+# Phone Link a perdu l'iPhone (Bluetooth) : rien ne peut partir, même si la liste affiche le message.
+DISCONNECTED_PATTERNS = (
+    "problèmes de connexion à votre appareil",
+    "pas pu nous connecter à votre appareil",
+    "trouble connecting to your",
+    "couldn't connect to your",
+    "can't connect to your",
+)
+
 # Phone Link suit la langue de Windows : « Send » en anglais, « Envoyer » en français.
 SEND_BUTTON_SPECS: tuple[dict[str, str], ...] = (
     {"title_re": r"(?i)^(send|envoyer)$", "control_type": "Button"},

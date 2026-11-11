@@ -29,7 +29,8 @@ from typing import Any
 UI_LOCK = threading.RLock()
 
 PHONE_LINK_PROCESSES = ("phoneexperiencehost.exe", "yourphone.exe")
-DEFAULT_CALL_NAMES = ("Appeler", "Call", "Passer l'appel", "Composer", "Dial")
+# « Appel » (auto_id ButtonCall) : nom réel du bouton du clavier de Phone Link en français (relevé le 10/11 sur le PC).
+DEFAULT_CALL_NAMES = ("Appel", "Appeler", "Call", "Passer l'appel", "Composer", "Dial")
 DEFAULT_END_NAMES = ("Raccrocher", "Terminer l'appel", "Mettre fin à l'appel", "End call", "Hang up", "Hangup")
 
 
@@ -98,7 +99,7 @@ def end_call_button(config: dict[str, Any]) -> Any | None:
 
 
 def call_button(config: dict[str, Any]) -> Any | None:
-    return _find_button(_names(config, "call_button_names", DEFAULT_CALL_NAMES), r"(?i).*(callbutton|dialbutton|startcall|^call$).*")
+    return _find_button(_names(config, "call_button_names", DEFAULT_CALL_NAMES), r"(?i).*(callbutton|buttoncall|dialbutton|startcall|^call$).*")
 
 
 def in_call(config: dict[str, Any]) -> bool:
@@ -134,6 +135,9 @@ def dial(phone: str, config: dict[str, Any], *, timeout_s: float = 12.0) -> tupl
         return False, "Windows uniquement"
     with UI_LOCK:
         try:
+            from telelink.phone_link_hide import hide_all
+
+            hide_all(config)  # hors écran AVANT d'ouvrir le lien tel: → aucune apparition
             subprocess.run(["cmd", "/c", "start", "", dial_uri(phone)], check=False, creationflags=_flags())
         except OSError as exc:
             return False, f"tel: non ouvert ({exc})"

@@ -49,7 +49,11 @@ class PywinautoEngine:
             try:
                 btn = win.child_window(**spec)
                 if btn.exists(timeout=0.3):
-                    btn.click_input()
+                    # Invoke (UIA) : marche fenêtre hors écran, sans bouger la souris ; clic réel en secours.
+                    try:
+                        btn.wrapper_object().invoke()
+                    except Exception:
+                        btn.click_input()
                     return True
             except Exception:
                 continue

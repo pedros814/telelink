@@ -67,3 +67,33 @@ class VerifyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DisconnectedTests(unittest.TestCase):
+    def test_banner_means_not_sent(self) -> None:
+        from telelink.ui_automation.verify.predicates import phone_link_disconnected
+
+        class El:
+            def __init__(self, t):
+                self.t = t
+
+            def window_text(self):
+                return self.t
+
+        class Win:
+            def __init__(self, textes):
+                self.textes = textes
+
+            def descendants(self, **_):
+                return [El(t) for t in self.textes]
+
+        self.assertTrue(phone_link_disconnected(Win(["Nous rencontrons des problèmes de connexion à votre appareil"])))
+        self.assertTrue(phone_link_disconnected(Win(["Nous n’avons pas pu nous connecter à votre appareil mobile"])))
+        self.assertFalse(phone_link_disconnected(Win(["Bonjour Camille", "Envoyer"])))
+
+    def test_classify_disconnected(self) -> None:
+        from telelink import zeronoshow_bridge as zns
+
+        st, err = zns.classify_send_result({"send_clicked": False, "verify_method": "iphone_disconnected", "note": "x"})
+        self.assertEqual(st, "failed")
+        self.assertIn("iPhone non connecté", err or "")

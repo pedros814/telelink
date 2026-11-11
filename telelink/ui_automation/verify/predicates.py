@@ -51,6 +51,38 @@ def _compose_still_has_body(win, expected_body: str) -> bool:
     return bool(got)
 
 
+def phone_link_disconnected(win) -> bool:
+    """Phone Link affiche qu'il n'est plus connecté à l'iPhone (bandeau ou panneau de reconnexion)."""
+    from telelink.ui_automation.locators import DISCONNECTED_PATTERNS
+
+    try:
+        for el in win.descendants():
+            try:
+                t = (el.window_text() or "").lower().replace("\u2019", "'")
+                if t and any(p in t for p in DISCONNECTED_PATTERNS):
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
+def phone_link_send_permission_missing(win) -> bool:
+    """Phone Link affiche « Me montrer comment » (SendPermissionNotificationButton) : l'iPhone n'autorise pas
+    l'envoi de messages depuis le PC (Réglages → Bluetooth → (i) du PC → Afficher les notifications)."""
+    try:
+        for el in win.descendants(control_type="Button"):
+            try:
+                if str(getattr(el.element_info, "automation_id", "") or "") == "SendPermissionNotificationButton":
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
 def _ui_shows_send_failure(win) -> bool:
     try:
         for el in win.descendants():
@@ -124,6 +156,8 @@ def verify_send_delivered(
     """
 
     def _probe() -> tuple[bool, str]:
+        if phone_link_disconnected(win):
+            return False, "iphone_disconnected"
         if _ui_shows_send_failure(win):
             return False, "failure_indicator"
         still = _compose_still_has_body(win, body)

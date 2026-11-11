@@ -52,11 +52,24 @@ def maybe_focus_window(
 
 
 def minimize_window_stealth(win: Any, config: dict[str, Any] | None = None) -> bool:
-    """Minimize Phone Link without clicking chrome when stealth is enabled."""
+    """Minimize Phone Link without clicking chrome when stealth is enabled.
+
+    Mode ``automation.phone_link_window: offscreen`` (défaut) : la fenêtre est placée hors de l'écran
+    au lieu d'être réduite, pour qu'elle ne réapparaisse pas à chaque envoi.
+    """
     if win is None:
         return False
     if sys.platform != "win32":
         return False
+
+    from telelink.phone_link_hide import hide_hwnd, window_mode
+
+    if window_mode(config) == "offscreen":
+        try:
+            if hide_hwnd(int(getattr(win, "handle"))):
+                return True
+        except Exception:
+            pass
 
     auto = get_automation_config(config or {})
     fallback = auto.get("fallback") or {}

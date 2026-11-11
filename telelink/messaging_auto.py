@@ -49,6 +49,30 @@ def _method_from_send_result(send_result: dict[str, Any], auto_cfg: dict[str, An
     return "auto_pywinauto"
 
 
+def autorisation_envoi_manquante(cfg: dict[str, Any]) -> bool:
+    """Phone Link demande l'autorisation d'envoyer des messages (bouton « Me montrer comment »)."""
+    try:
+        from telelink.ui_automation.session import find_phone_link_window
+        from telelink.ui_automation.verify.predicates import phone_link_send_permission_missing
+
+        win = find_phone_link_window(config=cfg)
+        return bool(win is not None and phone_link_send_permission_missing(win))
+    except Exception:
+        return False
+
+
+def iphone_deconnecte(cfg: dict[str, Any]) -> bool:
+    """Fenêtre Phone Link trouvée et affichant la perte de connexion avec l'iPhone."""
+    try:
+        from telelink.ui_automation.session import find_phone_link_window
+        from telelink.ui_automation.verify.predicates import phone_link_disconnected
+
+        win = find_phone_link_window(config=cfg)
+        return bool(win is not None and phone_link_disconnected(win))
+    except Exception:
+        return False
+
+
 def auto_send_phone_link(
     phone: str,
     body: str,
@@ -66,6 +90,25 @@ def auto_send_phone_link(
     do_unfocus = bool(messaging.get("auto_unfocus_titlebar", True))
     do_minimize = bool(messaging.get("auto_minimize_after_send", True))
 
+    # iPhone déconnecté de Phone Link : on n'écrit même pas le message (il resterait en brouillon,
+    # et la liste de Phone Link l'afficherait comme s'il était parti).
+    if autorisation_envoi_manquante(cfg):
+        return {
+            "method": "auto", "uri": "", "send_clicked": False, "send_verified": False, "verify_method": "send_permission_missing",
+            "auto_sent": False, "unfocused_compose": False, "minimized_phone_link": False,
+            "note": "L'iPhone n'autorise pas l'envoi de SMS depuis le PC : Réglages → Bluetooth → (i) à côté du PC → activer « Afficher les notifications »",
+            "engine": "", "fallback_used": False, "attempts": [],
+        }
+    if iphone_deconnecte(cfg):
+        return {
+            "method": "auto", "uri": "", "send_clicked": False, "send_verified": False, "verify_method": "iphone_disconnected",
+            "auto_sent": False, "unfocused_compose": False, "minimized_phone_link": False,
+            "note": "iPhone non connecté à Phone Link (Bluetooth) : SMS non envoyé", "engine": "", "fallback_used": False, "attempts": [],
+        }
+
+    from telelink.phone_link_hide import hide_all
+
+    hide_all(cfg)  # hors écran AVANT d'ouvrir le lien sms: → aucune apparition
     uri = _open_sms_uri(phone, body)
     session = UiAutomationSession()
     with stealth_ui(cfg) as stealth:
@@ -105,6 +148,8 @@ def auto_send_phone_link(
         note = "Send clicked but not verified — compose may still have text"
         if verify_method == "failure_indicator":
             note = "Phone Link shows send failure — message may not have been sent"
+        elif verify_method == "iphone_disconnected":
+            note = "iPhone non connecté à Phone Link (Bluetooth) : SMS non envoyé"
     else:
         note = "Could not click Send in Phone Link UI"
 

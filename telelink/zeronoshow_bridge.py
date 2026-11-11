@@ -35,6 +35,7 @@ PHONE_LINK_PROCESSES = ("PhoneExperienceHost.exe", "YourPhone.exe")
 DEFAULT_AUMID = "Microsoft.YourPhone_8wekyb3d8bbwe!App"
 # Dernier état connu de Phone Link, envoyé au serveur avec chaque appel (affichage « Phone Link fermé »).
 _PHONE_LINK_OK = True
+_IPHONE_OK = True
 TEAM_REFRESH_SECONDS = 600
 
 
@@ -163,7 +164,7 @@ def api_post(settings: dict[str, Any], path: str, payload: dict[str, Any]) -> di
         headers={
             "Authorization": f"Bearer {settings['token']}",
             "Content-Type": "application/json",
-            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})" + ("" if _PHONE_LINK_OK else " phonelink=off"),
+            "User-Agent": f"TeleLink-ZeroNoShow-Bridge/{_version()} ({os.environ.get('COMPUTERNAME', 'pc')})" + ("" if _PHONE_LINK_OK else " phonelink=off") + ("" if _IPHONE_OK else " iphone=off"),
         },
     )
     try:
@@ -224,6 +225,10 @@ def classify_send_result(record: dict[str, Any]) -> tuple[str, str | None]:
     """Map TeleLink send_message() output to a ZeroNoShow report ('sent'|'failed', error)."""
     if record.get("auto_sent"):
         return "sent", None
+    if record.get("verify_method") == "send_permission_missing":
+        return "failed", str(record.get("note") or "L'iPhone n'autorise pas l'envoi de SMS depuis le PC.")
+    if record.get("verify_method") == "iphone_disconnected":
+        return "failed", "iPhone non connecté à Phone Link (Bluetooth) : SMS non envoyé. Reconnecte l'iPhone puis renvoie."
     if record.get("send_clicked"):
         # Phone Link UI did not confirm. Report failure (never retried server-side,
         # so no duplicate), but say the SMS may have left.
@@ -404,12 +409,20 @@ def run_once(config: dict[str, Any], *, log: Callable[[str], None] = print) -> d
     now = datetime.now(timezone.utc)
     prune_recipients(state, now, settings["inbound_window_days"])
 
-    global _PHONE_LINK_OK
+    global _PHONE_LINK_OK, _IPHONE_OK
     result = {"sent": 0, "replies": 0}
     _PHONE_LINK_OK = ensure_phone_link(config, launch=settings["launch_phone_link"])
-    if not _PHONE_LINK_OK:
-        log("[zns] Phone Link not running — waiting (open Phone Link, iPhone Bluetooth on)")
-        try:  # le serveur sait que le pont tourne mais que Phone Link est fermé
+    if _PHONE_LINK_OK:
+        try:  # Phone Link ouvert mais iPhone perdu (Bluetooth) : signalé au serveur, aucun SMS tenté
+            from telelink.messaging_auto import iphone_deconnecte
+
+            _IPHONE_OK = not iphone_deconnecte(config)
+        except Exception:  # noqa: BLE001
+            _IPHONE_OK = True
+    if not _PHONE_LINK_OK or not _IPHONE_OK:
+        # Rien n'est pris dans la file : les SMS attendent (6 h maximum) que l'iPhone soit de nouveau joignable.
+        log("[zns] Phone Link not running — waiting (open Phone Link, iPhone Bluetooth on)" if not _PHONE_LINK_OK else "[zns] iPhone disconnected from Phone Link — waiting (toggle Bluetooth, click Retry)")
+        try:  # le serveur sait que le pont tourne mais que Phone Link (ou l'iPhone) ne répond pas
             api_post(settings, "/api/sms/telelink/claim", {"limit": 1, "dryRun": True})
         except Exception:  # noqa: BLE001
             pass
@@ -460,6 +473,12 @@ def cmd_zns(args: Namespace) -> int:
         print(f"appel terminé ({int(time.monotonic() - t0)} s)")
         return 0
 
+    if action == "show":
+        from telelink.phone_link_hide import show_all
+
+        print(f"Phone Link remis à l'écran ({show_all()} fenêtre(s)).")
+        return 0
+
     if action == "status":
         print(
             json.dumps(
@@ -505,7 +524,12 @@ def cmd_zns(args: Namespace) -> int:
         from telelink.zeronoshow_calls import start_calls_thread
 
         start_calls_thread(lambda: get_session().config_fresh(), bridge_settings, api_post)
-        print("[zns] appels : prêts (ZeroNoShow → iPhone, Phone Link réduit)")
+        print("[zns] appels : prêts (ZeroNoShow → iPhone)")
+    from telelink.phone_link_hide import start_watcher, window_mode
+
+    if window_mode(config) == "offscreen":
+        start_watcher(lambda: get_session().config_fresh())
+        print("[zns] Phone Link gardé hors de l'écran (cliquez-le dans la barre des tâches pour l'afficher)")
     while True:
         try:
             config = get_session().config_fresh()

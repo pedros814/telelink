@@ -103,6 +103,10 @@ automation:
     send_keys_enter: true
     minimize_showwindow: true   # SW_MINIMIZE without clicking chrome (stealth cleanup)
   stealth_ui: true               # minimize + restore your previous window after automation
+  # offscreen (défaut) : Phone Link reste ouvert hors de l'écran → plus d'ouverture/fermeture visible
+  #   à chaque SMS ou appel ; cliquez Phone Link dans la barre des tâches pour l'afficher.
+  # minimize : ancien comportement (la fenêtre s'ouvre puis se réduit).
+  phone_link_window: offscreen
 
 messaging:
   enabled: true
