@@ -146,17 +146,67 @@ def dial(phone: str, config: dict[str, Any], *, timeout_s: float = 12.0) -> tupl
             return False, f"tel: non ouvert ({exc})"
         deadline = time.monotonic() + timeout_s
         clicked = False
+        seen_button = False
         while time.monotonic() < deadline:
             time.sleep(0.5)
             if in_call(config):
                 minimize_all(config)
-                return True, "appel lancé" + (" (bouton Appeler)" if clicked else "")
+                return True, "appel lancé"
             if not clicked:
                 btn = call_button(config)
-                if btn is not None and _press(btn):
+                if btn is None:
+                    continue
+                seen_button = True
+                # On n'appuie qu'une fois le numéro affiché par Phone Link (sinon : appel vide, rien ne se passe).
+                if number_ready(btn, phone) and press_call(btn):
                     clicked = True
         minimize_all(config)
+        if clicked:
+            return False, "Phone Link n'a pas démarré l'appel (iPhone connecté ?)"
+        if seen_button:
+            return False, "Le numéro ne s'est pas affiché dans Phone Link"
         return False, "Phone Link n'a pas lancé l'appel (bouton introuvable : lancez `telelink zns ui-dump`)"
+
+
+def number_ready(btn: Any, phone: str) -> bool:
+    """Le bouton « Appel » de Phone Link porte le numéro composé (« Appel Numéro composé + 3 3 7 … »)."""
+    want = re.sub(r"\D", "", phone or "")[-9:]
+    try:
+        got = re.sub(r"\D", "", str(btn.element_info.name or ""))
+    except Exception:  # noqa: BLE001
+        return True  # nom illisible : on tente quand même
+    return not want or want in got
+
+
+def press_call(btn: Any) -> bool:
+    """Relevé sur le PC : Phone Link ignore UIA Invoke sur « Appel » ; focus + Espace lance l'appel.
+
+    La fenêtre reste hors écran (invisible) ; la fenêtre de l'utilisateur reprend le premier plan juste après.
+    """
+    try:
+        from pywinauto.keyboard import send_keys
+
+        from telelink.win_console import get_foreground_hwnd, restore_foreground
+    except ImportError:
+        return _press(btn)
+    previous = get_foreground_hwnd()
+    try:
+        top = btn.top_level_parent()
+        top.set_focus()
+        time.sleep(0.3)
+        btn.set_focus()
+        time.sleep(0.2)
+        send_keys("{SPACE}")
+        return True
+    except Exception:  # noqa: BLE001
+        return _press(btn)
+    finally:
+        time.sleep(0.3)
+        if previous:
+            try:
+                restore_foreground(previous)
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def hang_up(config: dict[str, Any]) -> bool:

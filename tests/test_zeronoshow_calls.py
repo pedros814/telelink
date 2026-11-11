@@ -111,3 +111,13 @@ class NamesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NumberReadyTests(unittest.TestCase):
+    def test_button_name_carries_dialed_number(self):
+        from types import SimpleNamespace as NS
+
+        btn = NS(element_info=NS(name="Appel Numéro composé + 3 3   7   4 9   2 1   9 8   8 5 "))
+        self.assertTrue(phone_link_dial.number_ready(btn, "+33749219885"))
+        self.assertFalse(phone_link_dial.number_ready(btn, "+33612345678"))
+        self.assertFalse(phone_link_dial.number_ready(NS(element_info=NS(name="Appel")), "+33749219885"))
