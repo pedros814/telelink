@@ -200,6 +200,7 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
         try:
             subprocess.run(["cmd", "/c", "start", "", wa_uri(phone, text)], check=False,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            opened_at = time.monotonic()
             want = _norm(text)[:40]
             deadline = time.monotonic() + timeout_s
             win = edit = None
@@ -217,14 +218,15 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
                     if want and want[:20] in current:
                         win, edit = w, e
                         break
-                    if not current:
+                    if not current and time.monotonic() - opened_at >= 2.0:
+                        # Laisser WhatsApp basculer sur la bonne conversation avant de coller (jamais dans la précédente).
                         # Relevé sur le PC : WhatsApp Desktop ignore le texte du lien ; zone vide → on colle le message.
                         _clipboard_paste(w, e, text)
                         if want[:20] in _norm(_composer_text(e)):
                             win, edit = w, e
                             break
                         continue
-                    if current and time.monotonic() > deadline - timeout_s + 3:
+                    if current and time.monotonic() - opened_at > 3.0:
                         # WhatsApp garde un brouillon existant et ignore le texte du lien : on n'envoie JAMAIS
                         # un brouillon qui n'est pas le nôtre.
                         return {**base, "note": "Un brouillon est déjà en cours dans cette conversation WhatsApp : message non envoyé",
