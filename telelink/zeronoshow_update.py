@@ -63,14 +63,25 @@ def local_version(root: Path | None = None) -> str:
 _VERSION_CACHE: str | None = None
 
 
+def announced_version(root: Path) -> str:
+    """Version enregistrée à la dernière mise à jour (data/version_pont.txt), sinon l'empreinte du dossier.
+
+    L'empreinte seule peut différer à cause de fichiers propres au PC (ex. dump.txt) alors que le pont
+    est à jour : ZeroNoShow afficherait « mise à jour en attente » à tort.
+    """
+    stamp = root / "data" / "version_pont.txt"
+    try:
+        value = stamp.read_text(encoding="utf-8").strip() if stamp.exists() else ""
+        return value or local_version(root)
+    except Exception:  # noqa: BLE001
+        return "inconnue"
+
+
 def current_version() -> str:
-    """Version annoncée au serveur (pour l'affichage « à jour » dans ZeroNoShow)."""
+    """Version annoncée au serveur par ce pont (calculée une fois par démarrage)."""
     global _VERSION_CACHE
     if _VERSION_CACHE is None:
-        try:
-            _VERSION_CACHE = local_version()
-        except Exception:  # noqa: BLE001
-            _VERSION_CACHE = "inconnue"
+        _VERSION_CACHE = announced_version(install_dir())
     return _VERSION_CACHE
 
 

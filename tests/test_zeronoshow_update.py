@@ -90,3 +90,22 @@ class UpdateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnnouncedVersionTests(unittest.TestCase):
+    def test_announces_recorded_version_despite_extra_local_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "telelink").mkdir()
+            (root / "telelink" / "__init__.py").write_text("x")
+            (root / "dump.txt").write_text("fichier propre à ce PC")
+            (root / "data").mkdir()
+            (root / "data" / "version_pont.txt").write_text("9e55fa87f30900f8\n")
+            self.assertEqual(up.announced_version(root), "9e55fa87f30900f8")
+
+    def test_without_record_falls_back_to_fingerprint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "telelink").mkdir()
+            (root / "telelink" / "__init__.py").write_text("x")
+            self.assertEqual(up.announced_version(root), up.local_version(root))
