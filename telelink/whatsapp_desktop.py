@@ -149,9 +149,17 @@ def send_whatsapp(phone: str, text: str, *, config: dict[str, Any] | None = None
                     if _no_account(w) and _composer(w) is None:
                         return {**base, "note": "Ce numéro n'a pas de compte WhatsApp", "verify_method": "no_whatsapp_account"}
                     e = _composer(w)
-                    if e is not None and want and want[:20] in _norm(_composer_text(e)):
+                    if e is None:
+                        continue
+                    current = _norm(_composer_text(e))
+                    if want and want[:20] in current:
                         win, edit = w, e
                         break
+                    if current and time.monotonic() > deadline - timeout_s + 3:
+                        # WhatsApp garde un brouillon existant et ignore le texte du lien : on n'envoie JAMAIS
+                        # un brouillon qui n'est pas le nôtre.
+                        return {**base, "note": "Un brouillon est déjà en cours dans cette conversation WhatsApp : message non envoyé",
+                                "verify_method": "draft_present"}
                 if edit is not None:
                     break
             if edit is None:
