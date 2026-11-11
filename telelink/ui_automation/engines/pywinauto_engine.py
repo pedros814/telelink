@@ -45,18 +45,16 @@ class PywinautoEngine:
 
         from telelink.ui_automation.locators import send_button_specs
 
+        from telelink.ui_automation.find import find_control, press
+
         for spec in send_button_specs(self._config):
-            try:
-                btn = win.child_window(**spec)
-                if btn.exists(timeout=0.3):
-                    # Invoke (UIA) : marche fenêtre hors écran, sans bouger la souris ; clic réel en secours.
-                    try:
-                        btn.wrapper_object().invoke()
-                    except Exception:
-                        btn.click_input()
-                    return True
-            except Exception:
-                continue
+            btn = find_control(win, spec)
+            if btn is not None and press(btn):
+                return True
+
+        if stealth_ui_enabled(self._config):
+            # Fenêtre cachée : Entrée partirait dans une autre fenêtre. Pas de bouton = pas d'envoi.
+            return False
 
         try:
             from pywinauto.keyboard import send_keys

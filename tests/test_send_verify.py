@@ -148,3 +148,22 @@ class SingleClickTests(unittest.TestCase):
             send_mod._build_engine_chain = original
         self.assertEqual(len(clicks), 1, "un SMS non confirmé ne doit jamais être recliqué")
         self.assertFalse(result["send_verified"])
+
+
+class FindControlTests(unittest.TestCase):
+    def test_wrapper_without_child_window_finds_send_button(self):
+        from telelink.ui_automation.find import find_control
+        from telelink.ui_automation.locators import send_button_specs
+
+        btn = El("Button", "Envoyer")
+        btn.element_info.name = "Envoyer"
+        btn.element_info.automation_id = "SendMessageButton"
+        btn.element_info.class_name = ""
+        other = El("Button", "Appel")
+        other.element_info.name = "Appel"
+        other.element_info.automation_id = "ButtonCall"
+        other.element_info.class_name = ""
+        win = Win([other, btn])           # comme un UIAWrapper : descendants(), pas de child_window()
+        self.assertFalse(hasattr(win, "child_window"))
+        found = next((find_control(win, s) for s in send_button_specs({}) if find_control(win, s)), None)
+        self.assertIs(found, btn)

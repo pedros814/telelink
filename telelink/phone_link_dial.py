@@ -79,18 +79,17 @@ def _phone_link_windows() -> list[Any]:
 
 
 def _find_button(names: tuple[str, ...], auto_id_re: str) -> Any | None:
+    from telelink.ui_automation.find import find_control
+
     rx = name_regex(names)
     for win in _phone_link_windows():
         for spec in (
             {"title_re": rx, "control_type": "Button"},
             {"auto_id_re": auto_id_re, "control_type": "Button"},
         ):
-            try:
-                btn = win.child_window(**spec)
-                if btn.exists(timeout=0.2):
-                    return btn
-            except Exception:  # noqa: BLE001
-                continue
+            btn = find_control(win, spec, timeout=0.2)
+            if btn is not None:
+                return btn
     return None
 
 
@@ -119,6 +118,10 @@ def minimize_all(config: dict[str, Any]) -> None:
 
 
 def _press(btn: Any) -> bool:
+    from telelink.ui_automation.find import press
+
+    if press(btn):
+        return True
     # invoke() works through UIA without focusing the window; click_input() as fallback.
     for method in ("invoke", "click", "click_input"):
         try:

@@ -106,6 +106,11 @@ def click_send_with_orchestrator(
             return False, "already_clicked"
         if not auto_cfg.get("fallback", {}).get("send_keys_enter", True):
             return False, "fallback_disabled"
+        from telelink.phone_link_hide import window_mode
+
+        if window_mode(config) == "offscreen":
+            # Fenêtre cachée : la touche Entrée partirait ailleurs. Bouton introuvable = échec clair.
+            return False, "send_button_not_found"
         win = ctx.get("win")
         sent = keys_engine.click_send(win, body)
         if sent:
