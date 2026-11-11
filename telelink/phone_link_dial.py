@@ -160,12 +160,34 @@ def dial(phone: str, config: dict[str, Any], *, timeout_s: float = 12.0) -> tupl
                 # On n'appuie qu'une fois le numéro affiché par Phone Link (sinon : appel vide, rien ne se passe).
                 if number_ready(btn, phone) and press_call(btn):
                     clicked = True
+                    # Phone Link crée sa fenêtre d'appel à ce moment : on la range aussitôt créée.
+                    hide_new_windows(config, seconds=3.0)
         minimize_all(config)
         if clicked:
             return False, "Phone Link n'a pas démarré l'appel (iPhone connecté ?)"
         if seen_button:
             return False, "Le numéro ne s'est pas affiché dans Phone Link"
         return False, "Phone Link n'a pas lancé l'appel (bouton introuvable : lancez `telelink zns ui-dump`)"
+
+
+def hide_new_windows(config: dict[str, Any], *, seconds: float, interval: float = 0.05) -> None:
+    """Range hors écran toute fenêtre Phone Link dès qu'elle apparaît (fenêtre d'appel au 1er appel)."""
+    try:
+        from telelink.phone_link_hide import hide_hwnd, is_offscreen, phone_link_hwnds, window_mode, _rect
+    except ImportError:
+        return
+    if window_mode(config) != "offscreen":
+        return
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        for hwnd in phone_link_hwnds():
+            try:
+                rect = _rect(hwnd)
+                if rect is not None and not is_offscreen(rect):
+                    hide_hwnd(hwnd)
+            except Exception:  # noqa: BLE001
+                continue
+        time.sleep(interval)
 
 
 def number_ready(btn: Any, phone: str) -> bool:
