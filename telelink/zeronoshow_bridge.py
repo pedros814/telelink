@@ -429,9 +429,12 @@ def run_once(config: dict[str, Any], *, log: Callable[[str], None] = print) -> d
     _PHONE_LINK_OK = ensure_phone_link(config, launch=settings["launch_phone_link"])
     if _PHONE_LINK_OK:
         try:  # Phone Link ouvert mais iPhone perdu (Bluetooth) : signalé au serveur, aucun SMS tenté
-            from telelink.messaging_auto import iphone_deconnecte
+            from telelink.messaging_auto import iphone_deconnecte, reconnecter_iphone
 
             _IPHONE_OK = not iphone_deconnecte(config)
+            if not _IPHONE_OK and reconnecter_iphone(config):
+                log("[zns] iPhone reconnecté à Phone Link (Réessayer)")
+                _IPHONE_OK = True
         except Exception:  # noqa: BLE001
             _IPHONE_OK = True
     if not _PHONE_LINK_OK or not _IPHONE_OK:

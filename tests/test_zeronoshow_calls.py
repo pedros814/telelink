@@ -121,3 +121,33 @@ class NumberReadyTests(unittest.TestCase):
         self.assertTrue(phone_link_dial.number_ready(btn, "+33749219885"))
         self.assertFalse(phone_link_dial.number_ready(btn, "+33612345678"))
         self.assertFalse(phone_link_dial.number_ready(NS(element_info=NS(name="Appel")), "+33749219885"))
+
+
+class ReconnectTests(unittest.TestCase):
+    def test_retry_pressed_when_disconnected(self):
+        import telelink.messaging_auto as ma
+        import telelink.ui_automation.find as find
+        import telelink.ui_automation.session as session
+        import telelink.ui_automation.verify.predicates as pred
+
+        state = {"connected": False, "pressed": 0}
+        win = object()
+        saved = (session.find_phone_link_window, pred.phone_link_disconnected, find.find_control, find.press)
+        session.find_phone_link_window = lambda **k: win
+        pred.phone_link_disconnected = lambda w: not state["connected"]
+        find.find_control = lambda w, spec, **k: "bouton-reessayer" if "essayer" in spec["title_re"] else None
+
+        def press(b):
+            state["pressed"] += 1
+            state["connected"] = True
+            return True
+
+        find.press = press
+        try:
+            ma._DERNIER_ESSAI_RECONNEXION = 0.0
+            self.assertTrue(ma.reconnecter_iphone({}, attente_s=3, intervalle_min_s=0))
+            self.assertEqual(state["pressed"], 1)
+            self.assertTrue(ma.reconnecter_iphone({}))  # déjà connecté : aucun nouvel appui
+            self.assertEqual(state["pressed"], 1)
+        finally:
+            session.find_phone_link_window, pred.phone_link_disconnected, find.find_control, find.press = saved

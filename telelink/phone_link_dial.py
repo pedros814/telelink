@@ -138,6 +138,13 @@ def dial(phone: str, config: dict[str, Any], *, timeout_s: float = 12.0) -> tupl
         return False, "Windows uniquement"
     with UI_LOCK:
         try:
+            from telelink.messaging_auto import iphone_deconnecte, reconnecter_iphone
+
+            if iphone_deconnecte(config) and not reconnecter_iphone(config, intervalle_min_s=0):
+                return False, "iPhone non connecté à Phone Link (Bluetooth) : rapprochez l'iPhone, Bluetooth activé"
+        except ImportError:
+            pass
+        try:
             from telelink.phone_link_hide import hide_all
 
             hide_all(config)  # hors écran AVANT d'ouvrir le lien tel: → aucune apparition

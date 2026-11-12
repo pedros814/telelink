@@ -61,6 +61,46 @@ def autorisation_envoi_manquante(cfg: dict[str, Any]) -> bool:
         return False
 
 
+_DERNIER_ESSAI_RECONNEXION = 0.0
+
+
+def reconnecter_iphone(cfg: dict[str, Any], *, attente_s: float = 10.0, intervalle_min_s: float = 15.0) -> bool:
+    """iPhone déconnecté de Phone Link : appuie sur « Réessayer » (Phone Link ne réessaie pas seul).
+
+    Relevé sur le PC : après une coupure Bluetooth (iPhone éloigné, la nuit), Phone Link reste sur son
+    écran « Réessayer » ; un appui reconnecte en ~2 s dès que l'iPhone est à portée.
+    Retourne True si l'iPhone est (de nouveau) connecté.
+    """
+    global _DERNIER_ESSAI_RECONNEXION
+    import time as _t
+
+    try:
+        from telelink.phone_link_dial import UI_LOCK
+        from telelink.ui_automation.find import find_control, press
+        from telelink.ui_automation.session import find_phone_link_window
+        from telelink.ui_automation.verify.predicates import phone_link_disconnected
+    except ImportError:
+        return False
+    win = find_phone_link_window(config=cfg)
+    if win is None:
+        return False
+    if not phone_link_disconnected(win):
+        return True
+    if _t.monotonic() - _DERNIER_ESSAI_RECONNEXION < intervalle_min_s:
+        return False
+    _DERNIER_ESSAI_RECONNEXION = _t.monotonic()
+    with UI_LOCK:
+        btn = find_control(win, {"title_re": r"(?i)^(r.essayer|retry|reconnect|se reconnecter)$", "control_type": "Button"})
+        if btn is None or not press(btn):
+            return False
+        fin = _t.monotonic() + attente_s
+        while _t.monotonic() < fin:
+            _t.sleep(1.0)
+            if not phone_link_disconnected(win):
+                return True
+    return False
+
+
 def iphone_deconnecte(cfg: dict[str, Any]) -> bool:
     """Fenêtre Phone Link trouvée et affichant la perte de connexion avec l'iPhone."""
     try:
@@ -99,7 +139,7 @@ def auto_send_phone_link(
             "note": "L'iPhone n'autorise pas l'envoi de SMS depuis le PC : Réglages → Bluetooth → (i) à côté du PC → activer « Afficher les notifications »",
             "engine": "", "fallback_used": False, "attempts": [],
         }
-    if iphone_deconnecte(cfg):
+    if iphone_deconnecte(cfg) and not reconnecter_iphone(cfg, intervalle_min_s=0):
         return {
             "method": "auto", "uri": "", "send_clicked": False, "send_verified": False, "verify_method": "iphone_disconnected",
             "auto_sent": False, "unfocused_compose": False, "minimized_phone_link": False,
